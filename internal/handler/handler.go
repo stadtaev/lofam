@@ -15,15 +15,11 @@ import (
 )
 
 type Handler struct {
-	projectService *service.ProjectService
-	taskService    *service.TaskService
+	taskService *service.TaskService
 }
 
-func New(projectService *service.ProjectService, taskService *service.TaskService) *Handler {
-	return &Handler{
-		projectService: projectService,
-		taskService:    taskService,
-	}
+func New(taskService *service.TaskService) *Handler {
+	return &Handler{taskService: taskService}
 }
 
 func (h *Handler) Router() chi.Router {
@@ -33,26 +29,13 @@ func (h *Handler) Router() chi.Router {
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.SetHeader("Content-Type", "application/json"))
 
-	r.Route("/api", func(r chi.Router) {
-		r.Route("/projects", func(r chi.Router) {
-			r.Get("/", h.listProjects)
-			r.Post("/", h.createProject)
-			r.Route("/{id}", func(r chi.Router) {
-				r.Get("/", h.getProject)
-				r.Put("/", h.updateProject)
-				r.Delete("/", h.deleteProject)
-				r.Get("/tasks", h.listProjectTasks)
-			})
-		})
-
-		r.Route("/tasks", func(r chi.Router) {
-			r.Get("/", h.listTasks)
-			r.Post("/", h.createTask)
-			r.Route("/{id}", func(r chi.Router) {
-				r.Get("/", h.getTask)
-				r.Put("/", h.updateTask)
-				r.Delete("/", h.deleteTask)
-			})
+	r.Route("/api/tasks", func(r chi.Router) {
+		r.Get("/", h.listTasks)
+		r.Post("/", h.createTask)
+		r.Route("/{id}", func(r chi.Router) {
+			r.Get("/", h.getTask)
+			r.Put("/", h.updateTask)
+			r.Delete("/", h.deleteTask)
 		})
 	})
 

@@ -24,7 +24,6 @@ type Task struct {
 	Description string       `json:"description"`
 	Status      TaskStatus   `json:"status"`
 	Priority    TaskPriority `json:"priority"`
-	ProjectID   int64        `json:"projectId"`
 	DueDate     *time.Time   `json:"dueDate,omitempty"`
 	CreatedAt   time.Time    `json:"createdAt"`
 }
@@ -33,7 +32,6 @@ type CreateTaskRequest struct {
 	Title       string       `json:"title"`
 	Description string       `json:"description"`
 	Priority    TaskPriority `json:"priority"`
-	ProjectID   int64        `json:"projectId"`
 	DueDate     *time.Time   `json:"dueDate,omitempty"`
 }
 
@@ -48,9 +46,6 @@ type UpdateTaskRequest struct {
 func (r CreateTaskRequest) Validate() error {
 	if r.Title == "" {
 		return ErrValidation("title is required")
-	}
-	if r.ProjectID == 0 {
-		return ErrValidation("projectId is required")
 	}
 	if r.Priority != "" && !isValidPriority(r.Priority) {
 		return ErrValidation("invalid priority: must be low, medium, or high")

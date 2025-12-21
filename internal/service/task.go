@@ -8,23 +8,15 @@ import (
 )
 
 type TaskService struct {
-	taskRepo    repository.TaskRepository
-	projectRepo repository.ProjectRepository
+	repo repository.TaskRepository
 }
 
-func NewTaskService(taskRepo repository.TaskRepository, projectRepo repository.ProjectRepository) *TaskService {
-	return &TaskService{
-		taskRepo:    taskRepo,
-		projectRepo: projectRepo,
-	}
+func NewTaskService(repo repository.TaskRepository) *TaskService {
+	return &TaskService{repo: repo}
 }
 
 func (s *TaskService) Create(ctx context.Context, req domain.CreateTaskRequest) (*domain.Task, error) {
 	if err := req.Validate(); err != nil {
-		return nil, err
-	}
-
-	if _, err := s.projectRepo.GetByID(ctx, req.ProjectID); err != nil {
 		return nil, err
 	}
 
@@ -38,11 +30,10 @@ func (s *TaskService) Create(ctx context.Context, req domain.CreateTaskRequest) 
 		Description: req.Description,
 		Status:      domain.TaskStatusTodo,
 		Priority:    priority,
-		ProjectID:   req.ProjectID,
 		DueDate:     req.DueDate,
 	}
 
-	if err := s.taskRepo.Create(ctx, task); err != nil {
+	if err := s.repo.Create(ctx, task); err != nil {
 		return nil, err
 	}
 
@@ -50,26 +41,11 @@ func (s *TaskService) Create(ctx context.Context, req domain.CreateTaskRequest) 
 }
 
 func (s *TaskService) GetByID(ctx context.Context, id int64) (*domain.Task, error) {
-	return s.taskRepo.GetByID(ctx, id)
+	return s.repo.GetByID(ctx, id)
 }
 
 func (s *TaskService) List(ctx context.Context) ([]domain.Task, error) {
-	tasks, err := s.taskRepo.List(ctx)
-	if err != nil {
-		return nil, err
-	}
-	if tasks == nil {
-		tasks = []domain.Task{}
-	}
-	return tasks, nil
-}
-
-func (s *TaskService) ListByProjectID(ctx context.Context, projectID int64) ([]domain.Task, error) {
-	if _, err := s.projectRepo.GetByID(ctx, projectID); err != nil {
-		return nil, err
-	}
-
-	tasks, err := s.taskRepo.ListByProjectID(ctx, projectID)
+	tasks, err := s.repo.List(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -84,7 +60,7 @@ func (s *TaskService) Update(ctx context.Context, id int64, req domain.UpdateTas
 		return nil, err
 	}
 
-	task, err := s.taskRepo.GetByID(ctx, id)
+	task, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -105,7 +81,7 @@ func (s *TaskService) Update(ctx context.Context, id int64, req domain.UpdateTas
 		task.DueDate = req.DueDate
 	}
 
-	if err := s.taskRepo.Update(ctx, task); err != nil {
+	if err := s.repo.Update(ctx, task); err != nil {
 		return nil, err
 	}
 
@@ -113,5 +89,5 @@ func (s *TaskService) Update(ctx context.Context, id int64, req domain.UpdateTas
 }
 
 func (s *TaskService) Delete(ctx context.Context, id int64) error {
-	return s.taskRepo.Delete(ctx, id)
+	return s.repo.Delete(ctx, id)
 }

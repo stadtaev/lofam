@@ -17,9 +17,9 @@ func NewTaskRepository(db *DB) *TaskRepository {
 
 func (r *TaskRepository) Create(ctx context.Context, task *domain.Task) error {
 	result, err := r.db.ExecContext(ctx,
-		`INSERT INTO tasks (title, description, status, priority, project_id, due_date)
-		 VALUES (?, ?, ?, ?, ?, ?)`,
-		task.Title, task.Description, task.Status, task.Priority, task.ProjectID, task.DueDate,
+		`INSERT INTO tasks (title, description, status, priority, due_date)
+		 VALUES (?, ?, ?, ?, ?)`,
+		task.Title, task.Description, task.Status, task.Priority, task.DueDate,
 	)
 	if err != nil {
 		return err
@@ -39,10 +39,10 @@ func (r *TaskRepository) Create(ctx context.Context, task *domain.Task) error {
 func (r *TaskRepository) GetByID(ctx context.Context, id int64) (*domain.Task, error) {
 	var task domain.Task
 	err := r.db.QueryRowContext(ctx,
-		`SELECT id, title, description, status, priority, project_id, due_date, created_at
+		`SELECT id, title, description, status, priority, due_date, created_at
 		 FROM tasks WHERE id = ?`, id,
 	).Scan(&task.ID, &task.Title, &task.Description, &task.Status, &task.Priority,
-		&task.ProjectID, &task.DueDate, &task.CreatedAt)
+		&task.DueDate, &task.CreatedAt)
 
 	if err == sql.ErrNoRows {
 		return nil, domain.ErrNotFound("task", id)
@@ -56,7 +56,7 @@ func (r *TaskRepository) GetByID(ctx context.Context, id int64) (*domain.Task, e
 
 func (r *TaskRepository) List(ctx context.Context) ([]domain.Task, error) {
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT id, title, description, status, priority, project_id, due_date, created_at
+		`SELECT id, title, description, status, priority, due_date, created_at
 		 FROM tasks ORDER BY created_at DESC`,
 	)
 	if err != nil {
@@ -68,30 +68,7 @@ func (r *TaskRepository) List(ctx context.Context) ([]domain.Task, error) {
 	for rows.Next() {
 		var t domain.Task
 		if err := rows.Scan(&t.ID, &t.Title, &t.Description, &t.Status, &t.Priority,
-			&t.ProjectID, &t.DueDate, &t.CreatedAt); err != nil {
-			return nil, err
-		}
-		tasks = append(tasks, t)
-	}
-
-	return tasks, rows.Err()
-}
-
-func (r *TaskRepository) ListByProjectID(ctx context.Context, projectID int64) ([]domain.Task, error) {
-	rows, err := r.db.QueryContext(ctx,
-		`SELECT id, title, description, status, priority, project_id, due_date, created_at
-		 FROM tasks WHERE project_id = ? ORDER BY created_at DESC`, projectID,
-	)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var tasks []domain.Task
-	for rows.Next() {
-		var t domain.Task
-		if err := rows.Scan(&t.ID, &t.Title, &t.Description, &t.Status, &t.Priority,
-			&t.ProjectID, &t.DueDate, &t.CreatedAt); err != nil {
+			&t.DueDate, &t.CreatedAt); err != nil {
 			return nil, err
 		}
 		tasks = append(tasks, t)

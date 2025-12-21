@@ -32,35 +32,21 @@ func New(dbPath string) (*DB, error) {
 		return nil, fmt.Errorf("ping database: %w", err)
 	}
 
-	if _, err := db.Exec("PRAGMA foreign_keys = ON"); err != nil {
-		return nil, fmt.Errorf("enable foreign keys: %w", err)
-	}
-
 	return &DB{db}, nil
 }
 
 func (db *DB) Migrate() error {
 	schema := `
-	CREATE TABLE IF NOT EXISTS projects (
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		name TEXT NOT NULL,
-		description TEXT NOT NULL DEFAULT '',
-		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-	);
-
 	CREATE TABLE IF NOT EXISTS tasks (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		title TEXT NOT NULL,
 		description TEXT NOT NULL DEFAULT '',
 		status TEXT NOT NULL DEFAULT 'todo',
 		priority TEXT NOT NULL DEFAULT 'medium',
-		project_id INTEGER NOT NULL,
 		due_date DATETIME,
-		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-		FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 	);
 
-	CREATE INDEX IF NOT EXISTS idx_tasks_project_id ON tasks(project_id);
 	CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
 	`
 

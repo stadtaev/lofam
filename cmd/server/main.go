@@ -24,13 +24,9 @@ func main() {
 		log.Fatalf("failed to run migrations: %v", err)
 	}
 
-	projectRepo := sqlite.NewProjectRepository(db)
 	taskRepo := sqlite.NewTaskRepository(db)
-
-	projectService := service.NewProjectService(projectRepo)
-	taskService := service.NewTaskService(taskRepo, projectRepo)
-
-	h := handler.New(projectService, taskService)
+	taskService := service.NewTaskService(taskRepo)
+	h := handler.New(taskService)
 
 	log.Printf("starting server on :%s", port)
 	if err := http.ListenAndServe(":"+port, h.Router()); err != nil {
