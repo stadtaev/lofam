@@ -1,4 +1,4 @@
-package domain
+package task
 
 import "fmt"
 
@@ -15,14 +15,13 @@ func ErrValidation(msg string) ValidationError {
 }
 
 type NotFoundError struct {
-	Entity string
-	ID     int64
+	ID int64
 }
 
 func (e NotFoundError) Error() string {
-	return fmt.Sprintf("%s with id %d not found", e.Entity, e.ID)
+	return fmt.Sprintf("task with id %d not found", e.ID)
 }
 
-func ErrNotFound(entity string, id int64) NotFoundError {
-	return NotFoundError{Entity: entity, ID: id}
+func ErrNotFound(id int64) NotFoundError {
+	return NotFoundError{ID: id}
 }

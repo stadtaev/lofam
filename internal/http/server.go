@@ -1,4 +1,4 @@
-package handler
+package http
 
 import (
 	"encoding/json"
@@ -10,19 +10,18 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 
-	"lofam/internal/domain"
-	"lofam/internal/service"
+	"lofam/internal/task"
 )
 
-type Handler struct {
-	taskService *service.TaskService
+type Server struct {
+	taskService *task.Service
 }
 
-func New(taskService *service.TaskService) *Handler {
-	return &Handler{taskService: taskService}
+func NewServer(taskService *task.Service) *Server {
+	return &Server{taskService: taskService}
 }
 
-func (h *Handler) Router() chi.Router {
+func (s *Server) Router() chi.Router {
 	r := chi.NewRouter()
 
 	r.Use(middleware.Logger)
@@ -30,12 +29,12 @@ func (h *Handler) Router() chi.Router {
 	r.Use(middleware.SetHeader("Content-Type", "application/json"))
 
 	r.Route("/api/tasks", func(r chi.Router) {
-		r.Get("/", h.listTasks)
-		r.Post("/", h.createTask)
+		r.Get("/", s.listTasks)
+		r.Post("/", s.createTask)
 		r.Route("/{id}", func(r chi.Router) {
-			r.Get("/", h.getTask)
-			r.Put("/", h.updateTask)
-			r.Delete("/", h.deleteTask)
+			r.Get("/", s.getTask)
+			r.Put("/", s.updateTask)
+			r.Delete("/", s.deleteTask)
 		})
 	})
 
@@ -58,13 +57,13 @@ func writeError(w http.ResponseWriter, status int, message string) {
 }
 
 func handleError(w http.ResponseWriter, err error) {
-	var validationErr domain.ValidationError
+	var validationErr task.ValidationError
 	if errors.As(err, &validationErr) {
 		writeError(w, http.StatusBadRequest, validationErr.Message)
 		return
 	}
 
-	var notFoundErr domain.NotFoundError
+	var notFoundErr task.NotFoundError
 	if errors.As(err, &notFoundErr) {
 		writeError(w, http.StatusNotFound, notFoundErr.Error())
 		return
@@ -78,7 +77,7 @@ func parseID(r *http.Request) (int64, error) {
 	idStr := chi.URLParam(r, "id")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
-		return 0, domain.ErrValidation("invalid id")
+		return 0, task.ErrValidation("invalid id")
 	}
 	return id, nil
 }

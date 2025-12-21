@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"os"
 
-	"lofam/internal/handler"
-	"lofam/internal/repository/sqlite"
-	"lofam/internal/service"
+	lofamhttp "lofam/internal/http"
+	"lofam/internal/sqlite"
+	"lofam/internal/task"
 )
 
 func main() {
@@ -24,12 +24,12 @@ func main() {
 		log.Fatalf("failed to run migrations: %v", err)
 	}
 
-	taskRepo := sqlite.NewTaskRepository(db)
-	taskService := service.NewTaskService(taskRepo)
-	h := handler.New(taskService)
+	taskStore := sqlite.NewTaskStore(db)
+	taskService := task.NewService(taskStore)
+	server := lofamhttp.NewServer(taskService)
 
 	log.Printf("starting server on :%s", port)
-	if err := http.ListenAndServe(":"+port, h.Router()); err != nil {
+	if err := http.ListenAndServe(":"+port, server.Router()); err != nil {
 		log.Fatalf("server error: %v", err)
 	}
 }
