@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 
-	"lofam/internal/task"
+	"github.com/stadtaev/lofam/internal/task"
 )
 
 type TaskStore struct {

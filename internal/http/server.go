@@ -10,7 +10,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 
-	"lofam/internal/task"
+	"github.com/stadtaev/lofam/internal/task"
 )
 
 type Server struct {

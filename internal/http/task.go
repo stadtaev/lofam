@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"lofam/internal/task"
+	"github.com/stadtaev/lofam/internal/task"
 )
 
 func (s *Server) listTasks(w http.ResponseWriter, r *http.Request) {

@@ -1,4 +1,4 @@
-module lofam
+module github.com/stadtaev/lofam
 
 go 1.21
 

@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"os"
 
-	lofamhttp "lofam/internal/http"
-	"lofam/internal/sqlite"
-	"lofam/internal/task"
+	lofamhttp "github.com/stadtaev/lofam/internal/http"
+	"github.com/stadtaev/lofam/internal/sqlite"
+	"github.com/stadtaev/lofam/internal/task"
 )
 
 func main() {
