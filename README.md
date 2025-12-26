@@ -11,6 +11,24 @@ A lightweight backend service for independent private data storage and organizat
 
 ## Quick Start
 
+### Using Docker Compose (Recommended)
+
+```bash
+docker compose up -d
+```
+
+The API will be available at `http://localhost:8080`.
+
+```bash
+# View logs
+docker compose logs -f
+
+# Stop
+docker compose down
+```
+
+### Local Development
+
 ```bash
 go run ./cmd/server
 ```
