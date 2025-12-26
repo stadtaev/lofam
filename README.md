@@ -30,7 +30,20 @@ docker compose down
 ### Local Development
 
 ```bash
+cd backend
 go run ./cmd/server
+```
+
+## Project Structure
+
+```
+lofam/
+├── backend/          # Go API server
+│   ├── cmd/server/
+│   ├── internal/
+│   └── Dockerfile
+├── frontend/         # Web UI (coming soon)
+└── docker-compose.yml
 ```
 
 ## License

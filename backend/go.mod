@@ -1,4 +1,4 @@
-module github.com/stadtaev/lofam
+module github.com/stadtaev/lofam/backend
 
 go 1.21
 
