@@ -3,8 +3,9 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
-    "dev": "vite dev",
-    "build": "vite build"
+    "dev": "vinxi dev",
+    "build": "vinxi build",
+    "start": "vinxi start"
   },
   "author": "stadtaev",
   "license": "MIT",
@@ -21,6 +22,7 @@
     "@tanstack/react-router": "^1.93.0",
     "@tanstack/react-start": "^1.93.0",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+     "vinxi": "^0.5.0"
   }
 }
