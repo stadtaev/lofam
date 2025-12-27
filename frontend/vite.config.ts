@@ -1,8 +1,7 @@
-// vite.config.ts
 import { defineConfig } from 'vite'
 import tsConfigPaths from 'vite-tsconfig-paths'
 import { tanstackStart } from '@tanstack/react-start/plugin/vite'
-import viteReact from '@vitejs/plugin-react'
+import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   server: {
@@ -10,8 +9,11 @@ export default defineConfig({
   },
   plugins: [
     tsConfigPaths(),
-    tanstackStart(),
-    // react's vite plugin must come after start's vite plugin
-    viteReact(),
+    tanstackStart({
+      tsr: {
+        appDirectory: './src',
+      },
+    }),
+    react(),
   ],
 })
