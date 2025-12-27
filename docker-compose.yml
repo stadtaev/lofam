@@ -16,21 +16,5 @@ services:
           ignore:
             - "**/*.db"
 
-  frontend:
-    build: ./frontend
-    ports:
-      - "3000:3000"
-    environment:
-      - VITE_API_URL=http://localhost:8080
-    depends_on:
-      - backend
-    restart: unless-stopped
-    develop:
-      watch:
-        - action: rebuild
-          path: ./frontend
-          ignore:
-            - node_modules
-
 volumes:
   lofam-data:
