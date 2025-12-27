@@ -100,15 +100,22 @@ export function TaskList({
                       <span className={`mt-1 ${PRIORITY_COLORS[task.priority]}`}>
                         ▸
                       </span>
-                      <span
-                        className={
-                          task.status === 'done'
-                            ? 'line-through text-gray-400'
-                            : ''
-                        }
-                      >
-                        {task.title}
-                      </span>
+                      <div className="flex-1 min-w-0">
+                        <span
+                          className={
+                            task.status === 'done'
+                              ? 'line-through text-gray-400'
+                              : ''
+                          }
+                        >
+                          {task.title}
+                        </span>
+                        {task.description && (
+                          <p className="text-xs italic text-gray-400 truncate">
+                            {task.description}
+                          </p>
+                        )}
+                      </div>
                     </button>
                   ))}
                 </div>
