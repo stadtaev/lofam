@@ -161,7 +161,7 @@ function TaskForm({ task, onSubmit, onCancel }: TaskFormProps) {
   const [description, setDescription] = useState(task?.description ?? '')
   const [status, setStatus] = useState<TaskStatus>(task?.status ?? 'todo')
   const [priority, setPriority] = useState<TaskPriority>(task?.priority ?? 'medium')
-  const [dueDate, setDueDate] = useState(task?.dueDate ?? '')
+  const [dueDate, setDueDate] = useState(task?.dueDate ? task.dueDate.split('T')[0] : '')
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -170,7 +170,7 @@ function TaskForm({ task, onSubmit, onCancel }: TaskFormProps) {
       description: description || undefined,
       status,
       priority,
-      dueDate: dueDate || undefined,
+      dueDate: dueDate ? `${dueDate}T00:00:00Z` : undefined,
     })
   }
 
