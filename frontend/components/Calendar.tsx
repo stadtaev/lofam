@@ -37,7 +37,7 @@ export function Calendar({
   }, {} as Record<string, Task[]>)
 
   return (
-    <div className="w-80">
+    <div className="w-full lg:w-80">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h2 className="text-3xl font-light">{getMonthName(month)}</h2>

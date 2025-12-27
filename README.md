@@ -23,6 +23,14 @@ docker compose up --build
 - **Frontend**: http://localhost:3000
 - **Backend API**: http://localhost:8080
 
+### Development Mode with Hot Reload
+
+```bash
+docker compose -f docker-compose.dev.yml up
+```
+
+Runs frontend in dev mode with hot reload - changes reflect instantly without rebuilding.
+
 ### Development Mode with Auto-Rebuild
 
 ```bash

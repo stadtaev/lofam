@@ -116,7 +116,7 @@ export default function Home() {
         </div>
       )}
 
-      <div className="max-w-6xl mx-auto flex gap-8">
+      <div className="max-w-6xl mx-auto flex flex-col lg:flex-row gap-8">
         <div className="flex-shrink-0">
           <Calendar
             year={year}

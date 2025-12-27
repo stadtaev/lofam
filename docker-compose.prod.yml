@@ -1,0 +1,37 @@
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "8080:8080"
+    volumes:
+      - lofam-data:/data
+    environment:
+      - PORT=8080
+      - DB_PATH=/data/lofam.db
+    restart: unless-stopped
+    develop:
+      watch:
+        - action: rebuild
+          path: ./backend
+          ignore:
+            - "**/*.db"
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8080
+    depends_on:
+      - backend
+    restart: unless-stopped
+    develop:
+      watch:
+        - action: rebuild
+          path: ./frontend
+          ignore:
+            - node_modules
+            - .next
+
+volumes:
+  lofam-data:

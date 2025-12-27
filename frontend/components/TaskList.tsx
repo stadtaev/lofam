@@ -46,7 +46,7 @@ export function TaskList({
   const sortedDates = Object.keys(tasksByDate).sort()
 
   return (
-    <div className="flex-1 border-l pl-8">
+    <div className="flex-1 border-t lg:border-t-0 lg:border-l pt-8 lg:pt-0 lg:pl-8">
       <div className="mb-6">
         <div className="relative">
           <input

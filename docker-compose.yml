@@ -1,3 +1,11 @@
+# Development docker-compose with hot reload for frontend
+#
+# Turbopack issue: Next.js 15+ uses Turbopack by default which can panic with
+# "Next.js package not found" if the dev server starts before bun install completes.
+# Solution: Clear .next cache and use --frozen-lockfile for faster installs.
+# If you see this error, run: docker compose down -v && docker compose up
+# The -v flag clears the node_modules volume which may have stale dependencies.
+
 services:
   backend:
     build: ./backend
@@ -9,29 +17,23 @@ services:
       - PORT=8080
       - DB_PATH=/data/lofam.db
     restart: unless-stopped
-    develop:
-      watch:
-        - action: rebuild
-          path: ./backend
-          ignore:
-            - "**/*.db"
 
   frontend:
-    build: ./frontend
+    image: oven/bun:1
+    working_dir: /app
     ports:
       - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - frontend-node-modules:/app/node_modules
     environment:
       - NEXT_PUBLIC_API_URL=http://localhost:8080
+      - WATCHPACK_POLLING=true
+      - CHOKIDAR_USEPOLLING=true
+    command: sh -c "rm -rf .next && bun install --frozen-lockfile && bun run dev --hostname 0.0.0.0"
     depends_on:
       - backend
-    restart: unless-stopped
-    develop:
-      watch:
-        - action: rebuild
-          path: ./frontend
-          ignore:
-            - node_modules
-            - .next
 
 volumes:
   lofam-data:
+  frontend-node-modules:
