@@ -1,13 +1,16 @@
 # Lofam
 
-A lightweight task management application with a Go backend and React frontend.
+A lightweight, self-hosted task management application with calendar view.
+
+![Calendar UI](frontend/ui-mock.png)
 
 ## Features
 
+- Calendar view with tasks organized by date
 - Task management with status, priority, and due dates
+- Search and filter tasks
 - Self-hosted with SQLite storage (no external dependencies)
 - RESTful API
-- Modern React UI with TanStack Router
 
 ## Quick Start
 
@@ -17,16 +20,16 @@ A lightweight task management application with a Go backend and React frontend.
 docker compose up --build
 ```
 
-- Frontend: http://localhost:3000
-- Backend API: http://localhost:8080
+- **Frontend**: http://localhost:3000
+- **Backend API**: http://localhost:8080
 
-### Development with Auto-Rebuild
+### Development Mode with Auto-Rebuild
 
 ```bash
 docker compose watch
 ```
 
-Automatically rebuilds when source files change.
+Automatically rebuilds containers when source files change.
 
 ### Local Development
 
@@ -43,63 +46,80 @@ bun install
 bun dev
 ```
 
-## API Endpoints
+## API Reference
+
+### Endpoints
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | /api/tasks | List all tasks |
-| POST | /api/tasks | Create task |
-| GET | /api/tasks/{id} | Get task by ID |
-| PUT | /api/tasks/{id} | Update task |
-| DELETE | /api/tasks/{id} | Delete task |
+| GET | `/api/tasks` | List all tasks |
+| POST | `/api/tasks` | Create a new task |
+| GET | `/api/tasks/{id}` | Get task by ID |
+| PUT | `/api/tasks/{id}` | Update task |
+| DELETE | `/api/tasks/{id}` | Delete task |
 
-### Task Model
+### Task Schema
 
 ```json
 {
   "id": 1,
   "title": "Task title",
   "description": "Optional description",
-  "status": "todo | in_progress | done",
-  "priority": "low | medium | high",
+  "status": "todo",
+  "priority": "medium",
   "dueDate": "2025-12-25T00:00:00Z",
   "createdAt": "2025-12-27T10:00:00Z"
 }
 ```
 
+**Status values:** `todo`, `in_progress`, `done`
+
+**Priority values:** `low`, `medium`, `high`
+
 ## Project Structure
 
 ```
 lofam/
-├── backend/              # Go API server
-│   ├── cmd/server/       # Entry point
+├── backend/                 # Go API server
+│   ├── cmd/server/          # Entry point
 │   ├── internal/
-│   │   ├── http/         # HTTP handlers
-│   │   ├── sqlite/       # Database layer
-│   │   └── task/         # Domain logic
+│   │   ├── http/            # HTTP handlers & middleware
+│   │   ├── sqlite/          # Database layer
+│   │   └── task/            # Domain logic
 │   └── Dockerfile
-├── frontend/             # React SPA
-│   ├── src/
-│   │   ├── api/          # API client
-│   │   ├── routes/       # TanStack Router pages
-│   │   └── types/        # TypeScript types
-│   ├── Dockerfile
-│   └── nginx.conf
+├── frontend/                # Next.js application
+│   ├── app/                 # App router pages
+│   ├── components/          # React components
+│   │   ├── Calendar.tsx     # Month calendar view
+│   │   ├── TaskList.tsx     # Task list with search
+│   │   ├── TaskModal.tsx    # Create/edit modal
+│   │   └── TodaySection.tsx # Today's tasks
+│   ├── lib/                 # API client & utilities
+│   └── Dockerfile
 └── docker-compose.yml
 ```
+
+## Configuration
+
+### Environment Variables
+
+| Variable | Service | Default | Description |
+|----------|---------|---------|-------------|
+| `PORT` | Backend | `8080` | HTTP server port |
+| `DB_PATH` | Backend | `lofam.db` | SQLite database path |
+| `NEXT_PUBLIC_API_URL` | Frontend | `http://localhost:8080` | Backend API URL |
 
 ## Tech Stack
 
 **Backend:**
 - Go 1.21+
 - Chi router
-- SQLite (modernc.org/sqlite)
+- SQLite (modernc.org/sqlite - pure Go, no CGO)
 
 **Frontend:**
+- Next.js 16
 - React 19
-- TanStack Router
-- Vite 7
-- Pico CSS
+- Tailwind CSS 4
 
 ## License
 

@@ -1,34 +1,52 @@
-# Lofam - Task Management Backend
+# Lofam - Task Management Application
 
-A task management backend focused on engineering perfection, following idiomatic Go patterns.
+A full-stack task management application with a Go backend and Next.js frontend.
 
 ## Project Structure
 
 ```
 lofam/
-├── cmd/server/main.go       # Application entry point, wiring
-├── internal/
-│   ├── http/
-│   │   ├── server.go        # Router, middleware, response helpers
-│   │   └── task.go          # Task HTTP handlers
-│   ├── sqlite/
-│   │   ├── db.go            # Database connection, migrations
-│   │   └── task.go          # TaskStore implementation
-│   └── task/
-│       ├── task.go          # Domain types, validation
-│       ├── errors.go        # Domain errors (ValidationError, NotFoundError)
-│       ├── store.go         # Store interface (defined at consumer)
-│       └── service.go       # Business logic
-├── migrations/
-│   └── 001_init.sql         # SQL schema reference
-└── go.mod
+├── backend/
+│   ├── cmd/server/main.go       # Application entry point, wiring
+│   ├── internal/
+│   │   ├── http/
+│   │   │   ├── server.go        # Router, middleware, CORS, response helpers
+│   │   │   └── task.go          # Task HTTP handlers
+│   │   ├── sqlite/
+│   │   │   ├── db.go            # Database connection, migrations
+│   │   │   └── task.go          # TaskStore implementation
+│   │   └── task/
+│   │       ├── task.go          # Domain types, validation
+│   │       ├── errors.go        # Domain errors (ValidationError, NotFoundError)
+│   │       ├── store.go         # Store interface (defined at consumer)
+│   │       └── service.go       # Business logic
+│   ├── Dockerfile
+│   └── go.mod
+├── frontend/
+│   ├── app/
+│   │   ├── layout.tsx           # Root layout with Inter font
+│   │   ├── page.tsx             # Main calendar page (client component)
+│   │   └── globals.css          # Tailwind CSS imports
+│   ├── components/
+│   │   ├── Calendar.tsx         # Month calendar with task indicators
+│   │   ├── TaskList.tsx         # Tasks grouped by date with search
+│   │   ├── TaskModal.tsx        # Create/edit/delete task modal
+│   │   └── TodaySection.tsx     # Today's tasks + add button
+│   ├── lib/
+│   │   ├── api.ts               # Backend API client (fetch wrapper)
+│   │   ├── types.ts             # TypeScript types (Task, CreateTaskRequest, etc.)
+│   │   └── date-utils.ts        # Date helper functions
+│   ├── Dockerfile               # Standalone Next.js build
+│   ├── next.config.ts           # output: 'standalone' for Docker
+│   └── package.json
+└── docker-compose.yml           # Backend + Frontend services
 ```
 
-## Architecture Principles
+## Backend Architecture
 
 ### Idiomatic Go Patterns
 
-1. **Interface at consumer, not implementer**: `task.Store` interface is defined in `internal/task/store.go` (where it's used), not in `internal/sqlite/` (where it's implemented). This is canonical Go - accept interfaces, return structs.
+1. **Interface at consumer, not implementer**: `task.Store` interface is defined in `internal/task/store.go` (where it's used), not in `internal/sqlite/` (where it's implemented).
 
 2. **Package naming**: Short, lowercase, no underscores
    - `http` (aliased as `lofamhttp` in main to avoid stdlib conflict)
@@ -37,12 +55,6 @@ lofam/
 
 3. **Type naming**: Package-qualified names read naturally
    - `task.Task`, `task.Status`, `task.CreateRequest`
-   - NOT: `task.TaskEntity`, `task.TaskStatus`
-
-4. **No enterprise patterns**: Avoid excessive layering
-   - No `domain/`, `repository/`, `handler/` directories
-   - No `ITaskRepository` interface naming
-   - No DTO mapping between identical structures
 
 ### Dependency Flow
 
@@ -58,35 +70,42 @@ task.Service
 http.Server
 ```
 
-## Code Conventions
+### Code Conventions
 
-### Error Handling
-
-- Domain errors defined in `task/errors.go` as typed structs
+**Error Handling:**
+- Domain errors in `task/errors.go` as typed structs
 - Constructor functions: `ErrValidation(msg)`, `ErrNotFound(id)`
 - HTTP layer uses `errors.As()` to map to status codes
-- Unexpected errors logged and returned as 500
 
-### Request/Response
-
-- Request types: `CreateRequest`, `UpdateRequest` with `Validate()` methods
-- Validation at service layer boundary
-- JSON tags with `omitempty` for optional fields
-- Pointers for optional update fields (`*string`, `*Status`)
-
-### HTTP Handlers
-
+**HTTP:**
+- CORS enabled via `go-chi/cors` middleware (allows localhost:3000)
 - Methods on `*Server` struct
-- Use `r.Context()` for context propagation
 - Centralized error handling via `handleError()`
-- Helper functions: `writeJSON()`, `writeError()`, `parseID()`
 
-### Database
-
-- Use `modernc.org/sqlite` (pure Go, no CGO)
-- Single connection (`SetMaxOpenConns(1)`) for SQLite
+**Database:**
+- `modernc.org/sqlite` (pure Go, no CGO)
 - Parameterized queries (no SQL injection)
-- Check `RowsAffected()` for update/delete operations
+
+## Frontend Architecture
+
+### Next.js 16 with App Router
+
+- **Client components** for interactive UI (`'use client'`)
+- **Tailwind CSS** for styling
+- **Standalone output** for Docker deployment
+
+### Component Structure
+
+- `Calendar`: Month view with navigation, highlights dates with tasks
+- `TaskList`: Searchable list of tasks grouped by due date
+- `TaskModal`: Form for create/edit with status, priority, due date
+- `TodaySection`: Quick view of today's tasks + add button
+
+### API Client
+
+- `lib/api.ts` wraps fetch calls to backend
+- Uses `NEXT_PUBLIC_API_URL` env var (defaults to `http://localhost:8080`)
+- Date format: RFC3339 (`2025-12-25T00:00:00Z`)
 
 ## API Endpoints
 
@@ -100,37 +119,64 @@ DELETE /api/tasks/{id} - Delete task
 
 ## Domain Model
 
-### Task Status
-- `todo` (default)
-- `in_progress`
-- `done`
+### Task
 
-### Task Priority
-- `low`
-- `medium` (default)
-- `high`
+```typescript
+{
+  id: number
+  title: string
+  description: string
+  status: 'todo' | 'in_progress' | 'done'
+  priority: 'low' | 'medium' | 'high'
+  dueDate: string | null  // RFC3339 format
+  createdAt: string       // RFC3339 format
+}
+```
 
 ## Configuration
 
-Environment variables:
+### Backend Environment Variables
 - `DB_PATH` - SQLite database file path (default: `lofam.db`)
 - `PORT` - HTTP server port (default: `8080`)
 
+### Frontend Environment Variables
+- `NEXT_PUBLIC_API_URL` - Backend API URL (default: `http://localhost:8080`)
+
 ## Development
 
+### Docker (Recommended)
+
 ```bash
-# Run server
+# Build and run both services
+docker compose up --build
+
+# Auto-rebuild on file changes
+docker compose watch
+```
+
+### Local Development
+
+**Backend:**
+```bash
+cd backend
 go run ./cmd/server
+```
 
-# Build
-go build -o lofam ./cmd/server
-
-# Test (when tests exist)
-go test ./...
+**Frontend:**
+```bash
+cd frontend
+bun install
+bun dev
 ```
 
 ## Dependencies
 
-Minimal, justified:
+### Backend
 - `github.com/go-chi/chi/v5` - Lightweight router with middleware
+- `github.com/go-chi/cors` - CORS middleware
 - `modernc.org/sqlite` - Pure Go SQLite (no CGO required)
+
+### Frontend
+- `next` 16.x - React framework
+- `react` 19.x - UI library
+- `tailwindcss` 4.x - Utility-first CSS
