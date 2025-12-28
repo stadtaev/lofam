@@ -11,6 +11,18 @@ on:
         options:
           - provision
           - destroy
+      mode:
+        description: 'Infrastructure mode'
+        required: true
+        default: 'alb'
+        type: choice
+        options:
+          - alb
+          - letsencrypt
+      domain:
+        description: 'Domain name (required for ALB mode)'
+        required: false
+        type: string
 
 env:
   AWS_REGION: us-east-1
@@ -21,9 +33,17 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       public_ip: ${{ steps.provision.outputs.public_ip }}
+      mode: ${{ inputs.mode }}
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Validate inputs
+        run: |
+          if [ "${{ inputs.mode }}" = "alb" ] && [ -z "${{ inputs.domain }}" ]; then
+            echo "::error::Domain is required for ALB mode"
+            exit 1
+          fi
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -38,13 +58,22 @@ jobs:
           KEY_NAME: ${{ secrets.AWS_KEY_NAME }}
         run: |
           chmod +x infrastructure/aws/provision.sh
-          ./infrastructure/aws/provision.sh
+          ./infrastructure/aws/provision.sh --mode ${{ inputs.mode }} --domain ${{ inputs.domain }}
 
       - name: Summary
         run: |
           echo "## Infrastructure Provisioned" >> $GITHUB_STEP_SUMMARY
+          echo "- **Mode**: ${{ inputs.mode }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Public IP**: ${{ steps.provision.outputs.public_ip }}" >> $GITHUB_STEP_SUMMARY
           echo "- **SSH**: \`ssh -i ~/.ssh/${{ secrets.AWS_KEY_NAME }}.pem ec2-user@${{ steps.provision.outputs.public_ip }}\`" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ inputs.mode }}" = "alb" ]; then
+            echo "- **ALB DNS**: ${{ steps.provision.outputs.alb_dns }}" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
+            echo "1. Create DNS CNAME: \`${{ inputs.domain }}\` → \`${{ steps.provision.outputs.alb_dns }}\`" >> $GITHUB_STEP_SUMMARY
+            echo "2. Validate ACM certificate in AWS Console" >> $GITHUB_STEP_SUMMARY
+            echo "3. Push to main to deploy" >> $GITHUB_STEP_SUMMARY
+          fi
 
   destroy:
     if: inputs.action == 'destroy'
@@ -62,11 +91,47 @@ jobs:
         run: |
           PROJECT="lofam"
 
+          # Delete ALB resources first (if exist)
+          echo "Checking for ALB resources..."
+
+          ALB_ARN=$(aws elbv2 describe-load-balancers \
+            --names "$PROJECT-alb" \
+            --query 'LoadBalancers[0].LoadBalancerArn' \
+            --output text 2>/dev/null || echo "None")
+
+          if [ "$ALB_ARN" != "None" ] && [ -n "$ALB_ARN" ]; then
+            echo "Deleting ALB listeners..."
+            LISTENERS=$(aws elbv2 describe-listeners \
+              --load-balancer-arn "$ALB_ARN" \
+              --query 'Listeners[*].ListenerArn' \
+              --output text 2>/dev/null || true)
+            for LISTENER in $LISTENERS; do
+              aws elbv2 delete-listener --listener-arn "$LISTENER" 2>/dev/null || true
+            done
+
+            echo "Deleting ALB: $ALB_ARN"
+            aws elbv2 delete-load-balancer --load-balancer-arn "$ALB_ARN"
+
+            echo "Waiting for ALB to be deleted..."
+            sleep 30
+          fi
+
+          # Delete target group
+          TG_ARN=$(aws elbv2 describe-target-groups \
+            --names "$PROJECT-tg" \
+            --query 'TargetGroups[0].TargetGroupArn' \
+            --output text 2>/dev/null || echo "None")
+
+          if [ "$TG_ARN" != "None" ] && [ -n "$TG_ARN" ]; then
+            echo "Deleting target group: $TG_ARN"
+            aws elbv2 delete-target-group --target-group-arn "$TG_ARN"
+          fi
+
           # Terminate instance
           INSTANCE_ID=$(aws ec2 describe-instances \
             --filters "Name=tag:Project,Values=$PROJECT" "Name=instance-state-name,Values=running,pending,stopped" \
             --query 'Reservations[0].Instances[0].InstanceId' \
-            --output text || echo "None")
+            --output text 2>/dev/null || echo "None")
 
           if [ "$INSTANCE_ID" != "None" ] && [ -n "$INSTANCE_ID" ]; then
             echo "Terminating instance: $INSTANCE_ID"
@@ -78,22 +143,27 @@ jobs:
           EIP_ALLOC=$(aws ec2 describe-addresses \
             --filters "Name=tag:Project,Values=$PROJECT" \
             --query 'Addresses[0].AllocationId' \
-            --output text || echo "None")
+            --output text 2>/dev/null || echo "None")
 
           if [ "$EIP_ALLOC" != "None" ] && [ -n "$EIP_ALLOC" ]; then
             echo "Releasing EIP: $EIP_ALLOC"
             aws ec2 release-address --allocation-id "$EIP_ALLOC"
           fi
 
-          # Delete security group
-          SG_ID=$(aws ec2 describe-security-groups \
-            --filters "Name=tag:Project,Values=$PROJECT" \
-            --query 'SecurityGroups[0].GroupId' \
-            --output text || echo "None")
+          # Delete security groups (ALB first, then EC2)
+          for COMPONENT in alb ec2; do
+            SG_ID=$(aws ec2 describe-security-groups \
+              --filters "Name=tag:Project,Values=$PROJECT" "Name=tag:Component,Values=$COMPONENT" \
+              --query 'SecurityGroups[0].GroupId' \
+              --output text 2>/dev/null || echo "None")
 
-          if [ "$SG_ID" != "None" ] && [ -n "$SG_ID" ]; then
-            echo "Deleting security group: $SG_ID"
-            aws ec2 delete-security-group --group-id "$SG_ID"
-          fi
+            if [ "$SG_ID" != "None" ] && [ -n "$SG_ID" ]; then
+              echo "Deleting security group ($COMPONENT): $SG_ID"
+              aws ec2 delete-security-group --group-id "$SG_ID" 2>/dev/null || true
+            fi
+          done
+
+          # Note: ACM certificates are not deleted (can be reused)
+          echo "Note: ACM certificates were not deleted and can be reused"
 
           echo "## Infrastructure Destroyed" >> $GITHUB_STEP_SUMMARY
