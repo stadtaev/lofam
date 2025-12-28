@@ -1,21 +1,21 @@
-'use client'
+"use client";
 
-import { getDayName, getMonthName } from '@/lib/date-utils'
-import type { Task, TaskPriority } from '@/lib/types'
+import { getDayName, getMonthName } from "@/lib/date-utils";
+import type { Task, TaskPriority } from "@/lib/types";
 
 interface TaskListProps {
-  tasks: Task[]
-  month: number
-  searchQuery: string
-  onSearchChange: (query: string) => void
-  onTaskClick: (task: Task) => void
+  tasks: Task[];
+  month: number;
+  searchQuery: string;
+  onSearchChange: (query: string) => void;
+  onTaskClick: (task: Task) => void;
 }
 
 const PRIORITY_COLORS: Record<TaskPriority, string> = {
-  high: 'text-red-500',
-  medium: 'text-amber-500',
-  low: 'text-gray-400',
-}
+  high: "text-red-500",
+  medium: "text-amber-500",
+  low: "text-gray-400",
+};
 
 export function TaskList({
   tasks,
@@ -27,23 +27,26 @@ export function TaskList({
   const filteredTasks = tasks.filter(
     (task) =>
       task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      task.description.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+      task.description.toLowerCase().includes(searchQuery.toLowerCase()),
+  );
 
   const tasksByDate = filteredTasks
     .filter((task) => task.dueDate)
     .sort((a, b) => {
-      if (!a.dueDate || !b.dueDate) return 0
-      return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
+      if (!a.dueDate || !b.dueDate) return 0;
+      return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
     })
-    .reduce((acc, task) => {
-      const date = task.dueDate!.split('T')[0]
-      if (!acc[date]) acc[date] = []
-      acc[date].push(task)
-      return acc
-    }, {} as Record<string, Task[]>)
+    .reduce(
+      (acc, task) => {
+        const date = task.dueDate!.split("T")[0];
+        if (!acc[date]) acc[date] = [];
+        acc[date].push(task);
+        return acc;
+      },
+      {} as Record<string, Task[]>,
+    );
 
-  const sortedDates = Object.keys(tasksByDate).sort()
+  const sortedDates = Object.keys(tasksByDate).sort();
 
   return (
     <div className="flex-1 border-t lg:border-t-0 lg:border-l pt-8 lg:pt-0 lg:pl-8">
@@ -80,12 +83,12 @@ export function TaskList({
 
       <div className="space-y-6 max-h-[calc(100vh-200px)] overflow-y-auto">
         {sortedDates.map((dateStr) => {
-          const date = new Date(dateStr)
-          const dayTasks = tasksByDate[dateStr]
+          const date = new Date(dateStr);
+          const dayTasks = tasksByDate[dateStr];
 
           return (
             <div key={dateStr} className="flex gap-4">
-              <div className="w-12 flex-shrink-0">
+              <div className="w-12 shrink-0">
                 <span className="text-2xl font-light">{date.getDate()}</span>
               </div>
               <div className="flex-1">
@@ -97,15 +100,17 @@ export function TaskList({
                       onClick={() => onTaskClick(task)}
                       className="flex items-start gap-2 w-full text-left hover:bg-gray-50 p-1 rounded"
                     >
-                      <span className={`mt-1 ${PRIORITY_COLORS[task.priority]}`}>
+                      <span
+                        className={`mt-1 ${PRIORITY_COLORS[task.priority]}`}
+                      >
                         ▸
                       </span>
                       <div className="flex-1 min-w-0">
                         <span
                           className={
-                            task.status === 'done'
-                              ? 'line-through text-gray-400'
-                              : ''
+                            task.status === "done"
+                              ? "line-through text-gray-400"
+                              : ""
                           }
                         >
                           {task.title}
@@ -121,7 +126,7 @@ export function TaskList({
                 </div>
               </div>
             </div>
-          )
+          );
         })}
 
         {sortedDates.length === 0 && (
@@ -129,5 +134,5 @@ export function TaskList({
         )}
       </div>
     </div>
-  )
+  );
 }

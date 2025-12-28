@@ -142,6 +142,25 @@ DELETE /api/tasks/{id} - Delete task
 ### Frontend Environment Variables
 - `NEXT_PUBLIC_API_URL` - Backend API URL (default: `http://localhost:8080`)
 
+## Testing
+
+### Integration Tests
+
+Integration tests use in-memory SQLite and test the full HTTP stack.
+
+```bash
+cd backend
+go test -tags=integration -v ./...
+```
+
+Test files use build tag `//go:build integration` to separate from unit tests.
+
+**Test structure:**
+- `internal/http/task_integration_test.go` - HTTP API integration tests
+- Uses `httptest.Server` with real router
+- In-memory SQLite (`:memory:`) as test double
+- Table-driven tests for multiple scenarios
+
 ## Development
 
 ### Docker (Recommended)
