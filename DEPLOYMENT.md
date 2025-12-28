@@ -1,6 +1,6 @@
 # Deployment Guide
 
-This guide covers deploying Lofam to AWS EC2 using GitHub Actions.
+This guide covers deploying Lofam to AWS EC2 using GitHub Actions with HTTPS.
 
 ## Architecture
 
@@ -8,23 +8,27 @@ This guide covers deploying Lofam to AWS EC2 using GitHub Actions.
 ┌─────────────────────────────────────────┐
 │              EC2 Instance               │
 │  ┌─────────────────────────────────┐    │
-│  │           nginx:80              │    │
+│  │     nginx:443 (HTTPS)           │    │
 │  │    ┌─────────┬─────────┐        │    │
 │  │    │   /*    │  /api/* │        │    │
 │  │    ▼         ▼         │        │    │
 │  │ frontend  backend      │        │    │
 │  │  :3000     :8080       │        │    │
 │  └─────────────────────────────────┘    │
-│                 │                        │
-│           SQLite volume                  │
+│         │               │               │
+│   SSL certs        SQLite volume        │
+│  (Let's Encrypt)                        │
 └─────────────────────────────────────────┘
 ```
+
+Port 80 redirects to HTTPS. Certificates auto-renew via certbot.
 
 ## Prerequisites
 
 1. AWS account with IAM user having EC2 permissions
 2. GitHub repository with Actions enabled
 3. SSH key pair created in AWS Console
+4. **Domain name** pointing to your Elastic IP (required for SSL)
 
 ## Setup
 
@@ -59,13 +63,32 @@ This creates (idempotent):
 
 All resources are tagged with `Project=lofam`.
 
-### 4. Update EC2_HOST Secret
+### 4. Configure DNS
 
-After provisioning:
-1. Check workflow output for the public IP
-2. Add/update `EC2_HOST` secret with this IP
+Point your domain to the Elastic IP:
+- A record: `yourdomain.com` → `<elastic-ip>`
+- Or CNAME if using subdomain
 
-### 5. Deploy Application
+### 5. Initialize SSL Certificate
+
+SSH into the instance and run the SSL init script:
+
+```bash
+ssh -i ~/.ssh/lofam-key.pem ec2-user@<elastic-ip>
+cd ~/app
+./infrastructure/aws/init-ssl.sh yourdomain.com your@email.com
+```
+
+This:
+1. Starts temporary nginx for ACME challenge
+2. Requests certificate from Let's Encrypt
+3. Stores certificate in Docker volume
+
+### 6. Update EC2_HOST Secret
+
+Add/update `EC2_HOST` secret with the Elastic IP.
+
+### 7. Deploy Application
 
 Push to `main` branch triggers automatic deployment:
 1. Runs Go tests
@@ -74,6 +97,17 @@ Push to `main` branch triggers automatic deployment:
 4. Runs `docker-compose -f docker-compose.prod.yml up --build -d`
 
 Or manually: Actions → Deploy → Run workflow
+
+## SSL Certificate Renewal
+
+Certificates auto-renew via the certbot container, which checks every 12 hours.
+
+To manually renew:
+
+```bash
+docker-compose -f docker-compose.prod.yml exec certbot certbot renew
+docker-compose -f docker-compose.prod.yml exec nginx nginx -s reload
+```
 
 ## Workflows
 
@@ -122,7 +156,22 @@ docker-compose -f docker-compose.prod.yml logs -f
 
 **Estimated monthly cost**: $0 (free tier) or ~$10-14/month
 
+SSL certificates from Let's Encrypt are **free**.
+
 ## Troubleshooting
+
+### SSL Certificate Issues
+
+```bash
+# Check certificate status
+docker-compose -f docker-compose.prod.yml exec certbot certbot certificates
+
+# View certbot logs
+docker-compose -f docker-compose.prod.yml logs certbot
+
+# Force renewal
+docker-compose -f docker-compose.prod.yml exec certbot certbot renew --force-renewal
+```
 
 ### SSH Connection Refused
 
@@ -150,14 +199,14 @@ docker-compose -f docker-compose.prod.yml down
 docker-compose -f docker-compose.prod.yml up --build -d
 ```
 
-### Application Not Accessible
+### HTTPS Not Working
 
 ```bash
-# Check nginx is running
-docker-compose -f docker-compose.prod.yml ps
+# Check nginx config
+docker-compose -f docker-compose.prod.yml exec nginx nginx -t
 
-# Check port 80 is open
-curl -I http://localhost
+# Check certificates exist
+docker-compose -f docker-compose.prod.yml exec nginx ls -la /etc/letsencrypt/live/lofam/
 ```
 
 ## Destroy Infrastructure
@@ -172,3 +221,5 @@ This terminates:
 - EC2 instance
 - Releases Elastic IP
 - Deletes security group
+
+**Note**: SSL certificates in Docker volumes are lost when instance is terminated.
