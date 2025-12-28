@@ -1,0 +1,64 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Lofam EC2 instance with Docker
+
+Parameters:
+  KeyName:
+    Type: String
+    Description: EC2 Key Pair name for SSH access
+
+Resources:
+  SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Lofam security group
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: lofam-sg
+
+  Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: ami-0f99d7be7d4273bba
+      InstanceType: t2.micro
+      KeyName: !Ref KeyName
+      SecurityGroups:
+        - !Ref SecurityGroup
+      Tags:
+        - Key: Name
+          Value: lofam
+      UserData:
+        Fn::Base64: |
+          #!/bin/bash
+          yum update -y
+          yum install -y docker git
+          systemctl enable docker
+          systemctl start docker
+          usermod -aG docker ec2-user
+          curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+          chmod +x /usr/local/bin/docker-compose
+          mkdir -p /home/ec2-user/app
+          chown ec2-user:ec2-user /home/ec2-user/app
+
+Outputs:
+  InstanceId:
+    Description: EC2 Instance ID
+    Value: !Ref Instance
+  PublicIP:
+    Description: Public IP address
+    Value: !GetAtt Instance.PublicIp
+  PublicDNS:
+    Description: Public DNS name
+    Value: !GetAtt Instance.PublicDnsName

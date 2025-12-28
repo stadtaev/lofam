@@ -1,16 +1,16 @@
-AWSTemplateFormatVersion: '2010-09-09'
-Description: Lofam EC2 instance with Docker
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Provisions a t2.micro EC2 with an SSH Key Pair and Docker.
 
 Parameters:
   KeyName:
-    Type: String
-    Description: EC2 Key Pair name for SSH access
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: Name of an existing EC2 KeyPair to enable SSH access.
 
 Resources:
-  SecurityGroup:
+  EC2SecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: Lofam security group
+      GroupDescription: Enable SSH (22), HTTP (80), and HTTPS (443)
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 22
@@ -24,41 +24,31 @@ Resources:
           FromPort: 443
           ToPort: 443
           CidrIp: 0.0.0.0/0
-      Tags:
-        - Key: Name
-          Value: lofam-sg
 
-  Instance:
+  DockerInstance:
     Type: AWS::EC2::Instance
     Properties:
-      ImageId: ami-0f99d7be7d4273bba
       InstanceType: t2.micro
+      ImageId: ami-0f99d7be7d4273bba
+      # --- ADDED LINE BELOW ---
       KeyName: !Ref KeyName
       SecurityGroups:
-        - !Ref SecurityGroup
-      Tags:
-        - Key: Name
-          Value: lofam
+        - !Ref EC2SecurityGroup
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            VolumeSize: 10
+            VolumeType: gp3
       UserData:
         Fn::Base64: |
           #!/bin/bash
           yum update -y
-          yum install -y docker git
-          systemctl enable docker
+          yum install -y docker
           systemctl start docker
+          systemctl enable docker
           usermod -aG docker ec2-user
-          curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-          chmod +x /usr/local/bin/docker-compose
-          mkdir -p /home/ec2-user/app
-          chown ec2-user:ec2-user /home/ec2-user/app
 
 Outputs:
-  InstanceId:
-    Description: EC2 Instance ID
-    Value: !Ref Instance
-  PublicIP:
-    Description: Public IP address
-    Value: !GetAtt Instance.PublicIp
-  PublicDNS:
-    Description: Public DNS name
-    Value: !GetAtt Instance.PublicDnsName
+  InstancePublicIp:
+    Description: Public IP of the newly created EC2
+    Value: !GetAtt DockerInstance.PublicIp
