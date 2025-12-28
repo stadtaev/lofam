@@ -347,8 +347,13 @@ if [ "$MODE" = "alb" ]; then
 else
   echo ""
   echo "Next steps:"
-  echo "1. Create DNS A record: $DOMAIN → $PUBLIC_IP"
-  echo "2. Run SSL init: ./init-ssl.sh $DOMAIN your@email.com"
+  if [ -n "$DOMAIN" ]; then
+    echo "1. Create DNS A record: $DOMAIN → $PUBLIC_IP"
+    echo "2. Run SSL init: ./init-ssl.sh $DOMAIN your@email.com"
+  else
+    echo "1. Point your domain A record to $PUBLIC_IP"
+    echo "2. Run SSL init: ./init-ssl.sh <your-domain> <your-email>"
+  fi
   echo "3. Deploy: docker-compose -f docker-compose.letsencrypt.yml up -d"
 fi
 

@@ -58,7 +58,11 @@ jobs:
           KEY_NAME: ${{ secrets.AWS_KEY_NAME }}
         run: |
           chmod +x infrastructure/aws/provision.sh
-          ./infrastructure/aws/provision.sh --mode ${{ inputs.mode }} --domain ${{ inputs.domain }}
+          ARGS="--mode ${{ inputs.mode }}"
+          if [ -n "${{ inputs.domain }}" ]; then
+            ARGS="$ARGS --domain ${{ inputs.domain }}"
+          fi
+          ./infrastructure/aws/provision.sh $ARGS
 
       - name: Summary
         run: |
@@ -72,6 +76,12 @@ jobs:
             echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
             echo "1. Create DNS CNAME: \`${{ inputs.domain }}\` → \`${{ steps.provision.outputs.alb_dns }}\`" >> $GITHUB_STEP_SUMMARY
             echo "2. Validate ACM certificate in AWS Console" >> $GITHUB_STEP_SUMMARY
+            echo "3. Push to main to deploy" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
+            echo "1. Point your domain A record to \`${{ steps.provision.outputs.public_ip }}\`" >> $GITHUB_STEP_SUMMARY
+            echo "2. SSH and run: \`./infrastructure/aws/init-ssl.sh <domain> <email>\`" >> $GITHUB_STEP_SUMMARY
             echo "3. Push to main to deploy" >> $GITHUB_STEP_SUMMARY
           fi
 
