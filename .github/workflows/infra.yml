@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       action:
-        description: 'Action to perform'
+        description: "Action to perform"
         required: true
-        default: 'create'
+        default: "create"
         type: choice
         options:
           - create
@@ -32,21 +32,25 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Deploy CloudFormation stack
-        run: |
-          aws cloudformation deploy \
-            --template-file infrastructure/ec2.yml \
-            --stack-name ${{ env.STACK_NAME }} \
-            --parameter-overrides KeyName=${{ secrets.AWS_KEY_NAME }} \
-            --no-fail-on-empty-changeset
+        uses: aws-actions/aws-cloudformation-github-deploy@v1
+        with:
+          name: MyDockerStack
+          template: infrastructure/ec2.yml
+          no-fail-on-empty-changeset: "1"
+          parameter-overrides: "KeyName=${{ env.AWS_REGION }}"
 
-      - name: Get stack outputs
-        id: stack
+      - name: Get the Output IP
+        # Reference: steps.<id>.outputs.<OutputKeyName>
         run: |
-          PUBLIC_IP=$(aws cloudformation describe-stacks \
-            --stack-name ${{ env.STACK_NAME }} \
-            --query 'Stacks[0].Outputs[?OutputKey==`PublicIP`].OutputValue' \
-            --output text)
-          echo "public_ip=$PUBLIC_IP" >> $GITHUB_OUTPUT
+          echo "The Public IP is ${{ steps.deploy-stack.outputs.InstancePublicIp }}"
+      #- name: Get stack outputs
+      #  id: stack
+      #  run: |
+      #    PUBLIC_IP=$(aws cloudformation describe-stacks \
+      #      --stack-name ${{ env.STACK_NAME }} \
+      #      --query 'Stacks[0].Outputs[?OutputKey==`PublicIP`].OutputValue' \
+      #      --output text)
+      #    echo "public_ip=$PUBLIC_IP" >> $GITHUB_OUTPUT
 
       - name: Summary
         run: |
