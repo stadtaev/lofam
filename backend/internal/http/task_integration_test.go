@@ -5,6 +5,7 @@ package http_test
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -22,9 +23,14 @@ type wantTask struct {
 	dueDate     string
 }
 
-func assertTask(t *testing.T, got task.Task, want wantTask) {
+type wantStatus string
+
+func assertTask(t *testing.T, got task.Task, want wantTask, status wantStatus) {
 	t.Helper()
 
+	if status == "" {
+		status = "todo"
+	}
 	if got.ID == 0 {
 		t.Error("expected non-zero ID")
 	}
@@ -37,13 +43,12 @@ func assertTask(t *testing.T, got task.Task, want wantTask) {
 	if string(got.Priority) != want.priority {
 		t.Errorf("priority = %q, want %q", got.Priority, want.priority)
 	}
-	if got.Status != "todo" {
-		t.Errorf("status = %q, want %q", got.Status, "todo")
+	if string(got.Status) != string(status) {
+		t.Errorf("status = %q, want %q", got.Status, status)
 	}
 	if got.CreatedAt.IsZero() {
 		t.Error("expected non-zero CreatedAt")
 	}
-
 	assertDueDate(t, got.DueDate, want.dueDate)
 }
 
@@ -159,8 +164,113 @@ func TestCreateTask(t *testing.T) {
 				if err := json.NewDecoder(resp.Body).Decode(&got); err != nil {
 					t.Fatalf("failed to decode response: %v", err)
 				}
-				assertTask(t, got, *tt.want)
+				assertTask(t, got, *tt.want, "")
 			}
 		})
 	}
+}
+
+func createTestTask(t *testing.T, baseURL, title string) task.Task {
+	t.Helper()
+	body, _ := json.Marshal(map[string]any{"title": title})
+	resp, err := http.Post(baseURL+"/api/tasks", "application/json", bytes.NewReader(body))
+	if err != nil {
+		t.Fatalf("failed to create test task: %v", err)
+	}
+	defer resp.Body.Close()
+	var created task.Task
+	json.NewDecoder(resp.Body).Decode(&created)
+	return created
+}
+
+func TestGetTask(t *testing.T) {
+	ts := setupTestServer(t)
+	defer ts.Close()
+
+	created := createTestTask(t, ts.URL, "Test task")
+
+	t.Run("existing", func(t *testing.T) {
+		resp, _ := http.Get(ts.URL + "/api/tasks/" + fmt.Sprint(created.ID))
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			t.Errorf("status = %d, want %d", resp.StatusCode, http.StatusOK)
+		}
+	})
+
+	t.Run("not found", func(t *testing.T) {
+		resp, _ := http.Get(ts.URL + "/api/tasks/99999")
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusNotFound {
+			t.Errorf("status = %d, want %d", resp.StatusCode, http.StatusNotFound)
+		}
+	})
+}
+
+func TestUpdateTask(t *testing.T) {
+	ts := setupTestServer(t)
+	defer ts.Close()
+
+	created := createTestTask(t, ts.URL, "Original")
+
+	t.Run("valid", func(t *testing.T) {
+		body, _ := json.Marshal(map[string]any{"title": "Updated", "status": "done"})
+		req, _ := http.NewRequest(http.MethodPut, ts.URL+"/api/tasks/"+fmt.Sprint(created.ID), bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		resp, _ := http.DefaultClient.Do(req)
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			t.Errorf("status = %d, want %d", resp.StatusCode, http.StatusOK)
+		}
+		var got task.Task
+		json.NewDecoder(resp.Body).Decode(&got)
+		assertTask(t, got, wantTask{title: "Updated", priority: "medium"}, "done")
+	})
+
+	t.Run("not found", func(t *testing.T) {
+		body, _ := json.Marshal(map[string]any{"title": "X"})
+		req, _ := http.NewRequest(http.MethodPut, ts.URL+"/api/tasks/99999", bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		resp, _ := http.DefaultClient.Do(req)
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusNotFound {
+			t.Errorf("status = %d, want %d", resp.StatusCode, http.StatusNotFound)
+		}
+	})
+
+	t.Run("invalid status", func(t *testing.T) {
+		body, _ := json.Marshal(map[string]any{"title": "X", "status": "invalid"})
+		req, _ := http.NewRequest(http.MethodPut, ts.URL+"/api/tasks/"+fmt.Sprint(created.ID), bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		resp, _ := http.DefaultClient.Do(req)
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusBadRequest {
+			t.Errorf("status = %d, want %d", resp.StatusCode, http.StatusBadRequest)
+		}
+	})
+}
+
+func TestDeleteTask(t *testing.T) {
+	ts := setupTestServer(t)
+	defer ts.Close()
+
+	created := createTestTask(t, ts.URL, "To delete")
+
+	t.Run("existing", func(t *testing.T) {
+		req, _ := http.NewRequest(http.MethodDelete, ts.URL+"/api/tasks/"+fmt.Sprint(created.ID), nil)
+		resp, _ := http.DefaultClient.Do(req)
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusNoContent {
+			t.Errorf("status = %d, want %d", resp.StatusCode, http.StatusNoContent)
+		}
+	})
+
+	t.Run("not found", func(t *testing.T) {
+		req, _ := http.NewRequest(http.MethodDelete, ts.URL+"/api/tasks/99999", nil)
+		resp, _ := http.DefaultClient.Do(req)
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusNotFound {
+			t.Errorf("status = %d, want %d", resp.StatusCode, http.StatusNotFound)
+		}
+	})
 }
