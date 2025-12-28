@@ -5,9 +5,6 @@ on:
     branches: [main]
   workflow_dispatch:
 
-env:
-  AWS_REGION: us-east-1
-
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -35,55 +32,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Detect infrastructure mode and get EC2 IP
-        id: infra
-        run: |
-          # Check if ALB exists (ALB mode)
-          ALB_ARN=$(aws elbv2 describe-load-balancers \
-            --names "lofam-alb" \
-            --query 'LoadBalancers[0].LoadBalancerArn' \
-            --output text 2>/dev/null || echo "None")
-
-          if [ "$ALB_ARN" != "None" ] && [ -n "$ALB_ARN" ]; then
-            echo "mode=alb" >> $GITHUB_OUTPUT
-            COMPOSE_FILE="docker-compose.prod.yml"
-            # Get EC2 IP from instance directly
-            IP=$(aws ec2 describe-instances \
-              --filters "Name=tag:Project,Values=lofam" "Name=instance-state-name,Values=running" \
-              --query 'Reservations[0].Instances[0].PublicIpAddress' \
-              --output text)
-          else
-            echo "mode=letsencrypt" >> $GITHUB_OUTPUT
-            COMPOSE_FILE="docker-compose.letsencrypt.yml"
-            # Get IP from Elastic IP
-            IP=$(aws ec2 describe-addresses \
-              --filters "Name=tag:Project,Values=lofam" \
-              --query 'Addresses[0].PublicIp' \
-              --output text)
-          fi
-
-          if [ "$IP" = "None" ] || [ -z "$IP" ]; then
-            echo "::error::No EC2 instance found with tag Project=lofam"
-            exit 1
-          fi
-
-          echo "host=$IP" >> $GITHUB_OUTPUT
-          echo "compose_file=$COMPOSE_FILE" >> $GITHUB_OUTPUT
-          echo "Detected mode: $(cat $GITHUB_OUTPUT | grep mode)"
-          echo "EC2 host: $IP"
-          echo "Compose file: $COMPOSE_FILE"
-
       - name: Deploy to EC2
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ steps.infra.outputs.host }}
+          host: ${{ secrets.EC2_HOST }}
           username: ec2-user
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
@@ -97,9 +49,9 @@ jobs:
               git reset --hard origin/main
             fi
 
-            # Build and restart using detected compose file
-            docker-compose -f ${{ steps.infra.outputs.compose_file }} down
-            docker-compose -f ${{ steps.infra.outputs.compose_file }} up --build -d
+            # Build and restart
+            docker-compose -f docker-compose.prod.yml down
+            docker-compose -f docker-compose.prod.yml up --build -d
 
             # Cleanup
             docker image prune -f

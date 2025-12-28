@@ -40,19 +40,15 @@ lofam/
 │   ├── Dockerfile               # Standalone Next.js build
 │   ├── next.config.ts           # output: 'standalone' for Docker
 │   └── package.json
-├── infrastructure/
-│   └── aws/
-│       ├── provision.sh         # Idempotent AWS CLI provisioning (ALB or Let's Encrypt)
-│       └── init-ssl.sh          # Let's Encrypt certificate setup
 ├── .github/workflows/
-│   ├── deploy.yml               # CI/CD pipeline (auto on push, auto-detects mode)
-│   └── infra.yml                # Infrastructure provisioning (manual)
+│   └── deploy.yml               # CI/CD pipeline (test + deploy on push to main)
 ├── docker-compose.yml           # Development (hot reload)
-├── docker-compose.prod.yml      # Production - ALB mode (nginx HTTP only)
-├── docker-compose.letsencrypt.yml  # Production - Let's Encrypt mode (nginx SSL + certbot)
-├── nginx.conf                   # ALB mode - simple HTTP proxy
-├── nginx.letsencrypt.conf       # Let's Encrypt mode - SSL termination
-└── DEPLOYMENT.md                # AWS deployment guide
+├── docker-compose.prod.yml      # Production - HTTP only
+├── docker-compose.letsencrypt.yml  # Production - HTTPS with Let's Encrypt
+├── nginx.conf                   # HTTP reverse proxy
+├── nginx.letsencrypt.conf       # HTTPS reverse proxy
+├── init-ssl.sh                  # Let's Encrypt certificate setup
+└── DEPLOYMENT.md                # EC2 deployment guide
 ```
 
 ## Backend Architecture
@@ -203,64 +199,34 @@ bun dev
 
 ## Deployment
 
-Two infrastructure modes available:
+### Prerequisites
 
-| Mode | Description | Cost |
-|------|-------------|------|
-| **ALB** (default) | AWS-managed SSL via ACM | ~$16/month + EC2 |
-| **Let's Encrypt** | Self-managed SSL via certbot | EC2 only |
+1. EC2 instance with Docker and docker-compose installed
+2. SSH access configured
 
-### Infrastructure (GitHub Actions)
+### GitHub Secrets
 
-Provision via GitHub Actions (manual trigger):
-
-1. Create SSH key pair in AWS Console (EC2 → Key Pairs)
-2. Add GitHub secrets:
-   - `AWS_ACCESS_KEY_ID`
-   - `AWS_SECRET_ACCESS_KEY`
-   - `AWS_KEY_NAME` - key pair name
-   - `EC2_SSH_KEY` - private key content
-3. Run workflow: Actions → Infrastructure → Run workflow
-   - Select mode: `alb` or `letsencrypt`
-   - Provide domain (required for ALB mode)
-
-Creates (idempotent - checks before creating):
-- EC2 t3.micro (free tier eligible)
-- Security groups
-- **ALB mode**: ALB, Target Group, ACM Certificate
-- **Let's Encrypt mode**: Elastic IP
-
-All resources tagged with `Project=lofam` for identification.
-
-**Destroy**: Run workflow with "destroy" action.
+| Secret | Description |
+|--------|-------------|
+| `EC2_HOST` | EC2 public IP or domain |
+| `EC2_SSH_KEY` | Private key content |
 
 ### CI/CD (GitHub Actions)
 
 On push to `main`:
-1. Runs Go tests
-2. Auto-detects infrastructure mode (ALB or Let's Encrypt)
-3. Discovers EC2 IP via AWS tag query
-4. SSHs to EC2, pulls latest code
-5. Runs appropriate docker-compose file
+1. Runs Go build and tests
+2. SSHs to EC2
+3. Pulls latest code
+4. Runs `docker-compose -f docker-compose.prod.yml up --build -d`
 
-**Required secrets:**
-- `AWS_ACCESS_KEY_ID`
-- `AWS_SECRET_ACCESS_KEY`
-- `EC2_SSH_KEY` - Private key content
+### Production Stack
 
-### Production Stacks
-
-**ALB Mode** (SSL at ALB):
 ```
-Internet → ALB:443 → EC2:80 → nginx → frontend:3000
-                                    → backend:8080
+nginx:80 → frontend:3000 (Next.js)
+         → backend:8080  (Go API via /api/*)
 ```
 
-**Let's Encrypt Mode** (SSL at nginx):
-```
-Internet → EC2:443 → nginx (SSL) → frontend:3000
-                                 → backend:8080
-```
+See `DEPLOYMENT.md` for full setup instructions.
 
 ## Dependencies
 
