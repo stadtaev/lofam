@@ -11,11 +11,18 @@ Deploy Lofam to an EC2 instance using GitHub Actions.
 
 ## EC2 Setup
 
-### 1. Launch EC2 Instance
+### Option A: GitHub Actions (Recommended)
+
+1. Go to Actions → Infrastructure → Run workflow
+2. Select action: `create`
+3. Wait for completion, note the Public IP from summary
+4. Add `EC2_HOST` secret with the Public IP
+
+### Option B: Manual Launch
 
 1. Go to AWS Console → EC2 → Launch Instance
-2. Select Amazon Linux 2023 AMI
-3. Choose instance type (t3.micro for free tier)
+2. Use AMI: `ami-0f99d7be7d4273bba`
+3. Choose instance type: t2.micro
 4. Create or select a key pair
 5. Configure security group:
    - SSH (22) from your IP
@@ -23,7 +30,7 @@ Deploy Lofam to an EC2 instance using GitHub Actions.
    - HTTPS (443) from anywhere (if using SSL)
 6. Launch instance
 
-### 2. Install Docker
+### Install Docker (Manual only)
 
 SSH into your instance and run:
 

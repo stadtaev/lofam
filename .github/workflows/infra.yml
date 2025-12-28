@@ -1,0 +1,81 @@
+name: Infrastructure
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        default: 'create'
+        type: choice
+        options:
+          - create
+          - delete
+
+env:
+  AWS_REGION: us-east-1
+  STACK_NAME: lofam
+
+jobs:
+  create:
+    if: inputs.action == 'create'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Deploy CloudFormation stack
+        run: |
+          aws cloudformation deploy \
+            --template-file infrastructure/ec2.yml \
+            --stack-name ${{ env.STACK_NAME }} \
+            --parameter-overrides KeyName=${{ secrets.AWS_KEY_NAME }} \
+            --no-fail-on-empty-changeset
+
+      - name: Get stack outputs
+        id: stack
+        run: |
+          PUBLIC_IP=$(aws cloudformation describe-stacks \
+            --stack-name ${{ env.STACK_NAME }} \
+            --query 'Stacks[0].Outputs[?OutputKey==`PublicIP`].OutputValue' \
+            --output text)
+          echo "public_ip=$PUBLIC_IP" >> $GITHUB_OUTPUT
+
+      - name: Summary
+        run: |
+          echo "## EC2 Instance Created" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Public IP**: \`${{ steps.stack.outputs.public_ip }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **SSH**: \`ssh -i ~/.ssh/${{ secrets.AWS_KEY_NAME }}.pem ec2-user@${{ steps.stack.outputs.public_ip }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
+          echo "1. Add \`EC2_HOST\` secret with value: \`${{ steps.stack.outputs.public_ip }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "2. Push to main to deploy the application" >> $GITHUB_STEP_SUMMARY
+
+  delete:
+    if: inputs.action == 'delete'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Delete CloudFormation stack
+        run: |
+          aws cloudformation delete-stack --stack-name ${{ env.STACK_NAME }}
+          aws cloudformation wait stack-delete-complete --stack-name ${{ env.STACK_NAME }}
+
+      - name: Summary
+        run: |
+          echo "## EC2 Instance Deleted" >> $GITHUB_STEP_SUMMARY

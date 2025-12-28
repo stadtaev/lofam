@@ -40,8 +40,11 @@ lofam/
 │   ├── Dockerfile               # Standalone Next.js build
 │   ├── next.config.ts           # output: 'standalone' for Docker
 │   └── package.json
+├── infrastructure/
+│   └── ec2.yml                  # CloudFormation template for EC2
 ├── .github/workflows/
-│   └── deploy.yml               # CI/CD pipeline (test + deploy on push to main)
+│   ├── deploy.yml               # CI/CD pipeline (test + deploy on push to main)
+│   └── infra.yml                # EC2 provisioning via CloudFormation
 ├── docker-compose.yml           # Development (hot reload)
 ├── docker-compose.prod.yml      # Production - HTTP only
 ├── docker-compose.letsencrypt.yml  # Production - HTTPS with Let's Encrypt
