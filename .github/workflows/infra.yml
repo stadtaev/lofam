@@ -1,0 +1,99 @@
+name: Infrastructure
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        default: 'provision'
+        type: choice
+        options:
+          - provision
+          - destroy
+
+env:
+  AWS_REGION: us-east-1
+
+jobs:
+  provision:
+    if: inputs.action == 'provision'
+    runs-on: ubuntu-latest
+    outputs:
+      public_ip: ${{ steps.provision.outputs.public_ip }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Provision infrastructure
+        id: provision
+        env:
+          KEY_NAME: ${{ secrets.AWS_KEY_NAME }}
+        run: |
+          chmod +x infrastructure/aws/provision.sh
+          ./infrastructure/aws/provision.sh
+
+      - name: Summary
+        run: |
+          echo "## Infrastructure Provisioned" >> $GITHUB_STEP_SUMMARY
+          echo "- **Public IP**: ${{ steps.provision.outputs.public_ip }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **SSH**: \`ssh -i ~/.ssh/${{ secrets.AWS_KEY_NAME }}.pem ec2-user@${{ steps.provision.outputs.public_ip }}\`" >> $GITHUB_STEP_SUMMARY
+
+  destroy:
+    if: inputs.action == 'destroy'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Destroy infrastructure
+        run: |
+          PROJECT="lofam"
+
+          # Terminate instance
+          INSTANCE_ID=$(aws ec2 describe-instances \
+            --filters "Name=tag:Project,Values=$PROJECT" "Name=instance-state-name,Values=running,pending,stopped" \
+            --query 'Reservations[0].Instances[0].InstanceId' \
+            --output text || echo "None")
+
+          if [ "$INSTANCE_ID" != "None" ] && [ -n "$INSTANCE_ID" ]; then
+            echo "Terminating instance: $INSTANCE_ID"
+            aws ec2 terminate-instances --instance-ids "$INSTANCE_ID"
+            aws ec2 wait instance-terminated --instance-ids "$INSTANCE_ID"
+          fi
+
+          # Release EIP
+          EIP_ALLOC=$(aws ec2 describe-addresses \
+            --filters "Name=tag:Project,Values=$PROJECT" \
+            --query 'Addresses[0].AllocationId' \
+            --output text || echo "None")
+
+          if [ "$EIP_ALLOC" != "None" ] && [ -n "$EIP_ALLOC" ]; then
+            echo "Releasing EIP: $EIP_ALLOC"
+            aws ec2 release-address --allocation-id "$EIP_ALLOC"
+          fi
+
+          # Delete security group
+          SG_ID=$(aws ec2 describe-security-groups \
+            --filters "Name=tag:Project,Values=$PROJECT" \
+            --query 'SecurityGroups[0].GroupId' \
+            --output text || echo "None")
+
+          if [ "$SG_ID" != "None" ] && [ -n "$SG_ID" ]; then
+            echo "Deleting security group: $SG_ID"
+            aws ec2 delete-security-group --group-id "$SG_ID"
+          fi
+
+          echo "## Infrastructure Destroyed" >> $GITHUB_STEP_SUMMARY

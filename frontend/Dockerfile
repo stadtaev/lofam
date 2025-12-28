@@ -3,6 +3,8 @@ WORKDIR /app
 COPY package.json bun.lock* ./
 RUN bun install
 COPY . .
+ARG NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN bun run build
 

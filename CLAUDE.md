@@ -11,7 +11,8 @@ lofam/
 │   ├── internal/
 │   │   ├── http/
 │   │   │   ├── server.go        # Router, middleware, CORS, response helpers
-│   │   │   └── task.go          # Task HTTP handlers
+│   │   │   ├── task.go          # Task HTTP handlers
+│   │   │   └── task_integration_test.go  # Integration tests
 │   │   ├── sqlite/
 │   │   │   ├── db.go            # Database connection, migrations
 │   │   │   └── task.go          # TaskStore implementation
@@ -39,7 +40,20 @@ lofam/
 │   ├── Dockerfile               # Standalone Next.js build
 │   ├── next.config.ts           # output: 'standalone' for Docker
 │   └── package.json
-└── docker-compose.yml           # Backend + Frontend services
+├── infrastructure/
+│   └── aws/
+│       ├── provision.sh         # Idempotent AWS CLI provisioning
+│       ├── main.tf              # Terraform alternative (optional)
+│       ├── variables.tf
+│       ├── outputs.tf
+│       └── provider.tf
+├── .github/workflows/
+│   ├── deploy.yml               # CI/CD pipeline (auto on push)
+│   └── infra.yml                # Infrastructure provisioning (manual)
+├── docker-compose.yml           # Development (hot reload)
+├── docker-compose.prod.yml      # Production (nginx + built images)
+├── nginx.conf                   # Reverse proxy config
+└── DEPLOYMENT.md                # AWS deployment guide
 ```
 
 ## Backend Architecture
@@ -186,6 +200,56 @@ go run ./cmd/server
 cd frontend
 bun install
 bun dev
+```
+
+## Deployment
+
+### Infrastructure (GitHub Actions)
+
+Provision via GitHub Actions (manual trigger):
+
+1. Create SSH key pair in AWS Console (EC2 → Key Pairs)
+2. Add GitHub secrets:
+   - `AWS_ACCESS_KEY_ID`
+   - `AWS_SECRET_ACCESS_KEY`
+   - `AWS_KEY_NAME` - key pair name
+3. Run workflow: Actions → Infrastructure → Run workflow → provision
+
+Creates (idempotent - checks before creating):
+- EC2 t3.micro (free tier eligible)
+- Security group (ports 22, 80, 443)
+- Elastic IP
+
+All resources tagged with `Project=lofam` for identification.
+
+**Destroy**: Run workflow with "destroy" action.
+
+### CI/CD (GitHub Actions)
+
+On push to `main`:
+1. Runs Go tests
+2. SSHs to EC2
+3. Pulls latest code
+4. Runs `docker-compose -f docker-compose.prod.yml up --build -d`
+
+**Required secrets:**
+- `EC2_HOST` - Elastic IP address
+- `EC2_SSH_KEY` - Private key content
+
+### Manual Deployment
+
+```bash
+ssh -i ~/.ssh/your-key.pem ec2-user@<elastic-ip>
+cd ~/app
+git clone https://github.com/your/repo .  # First time
+docker-compose -f docker-compose.prod.yml up --build -d
+```
+
+### Production Stack
+
+```
+nginx:80 → frontend:3000 (Next.js)
+         → backend:8080  (Go API via /api/*)
 ```
 
 ## Dependencies

@@ -1,0 +1,174 @@
+# Deployment Guide
+
+This guide covers deploying Lofam to AWS EC2 using GitHub Actions.
+
+## Architecture
+
+```
+┌─────────────────────────────────────────┐
+│              EC2 Instance               │
+│  ┌─────────────────────────────────┐    │
+│  │           nginx:80              │    │
+│  │    ┌─────────┬─────────┐        │    │
+│  │    │   /*    │  /api/* │        │    │
+│  │    ▼         ▼         │        │    │
+│  │ frontend  backend      │        │    │
+│  │  :3000     :8080       │        │    │
+│  └─────────────────────────────────┘    │
+│                 │                        │
+│           SQLite volume                  │
+└─────────────────────────────────────────┘
+```
+
+## Prerequisites
+
+1. AWS account with IAM user having EC2 permissions
+2. GitHub repository with Actions enabled
+3. SSH key pair created in AWS Console
+
+## Setup
+
+### 1. Create AWS Key Pair
+
+1. Go to AWS Console → EC2 → Key Pairs
+2. Create key pair (e.g., `lofam-key`)
+3. Download the `.pem` file
+
+### 2. Configure GitHub Secrets
+
+Go to your repo → Settings → Secrets and variables → Actions → New repository secret
+
+| Secret | Description |
+|--------|-------------|
+| `AWS_ACCESS_KEY_ID` | IAM access key ID |
+| `AWS_SECRET_ACCESS_KEY` | IAM secret access key |
+| `AWS_KEY_NAME` | Key pair name (e.g., `lofam-key`) |
+| `EC2_SSH_KEY` | Contents of the `.pem` file |
+| `EC2_HOST` | EC2 public IP (set after provisioning) |
+
+### 3. Provision Infrastructure
+
+1. Go to Actions → Infrastructure → Run workflow
+2. Select action: `provision`
+3. Click "Run workflow"
+
+This creates (idempotent):
+- EC2 t3.micro instance
+- Security group (ports 22, 80, 443)
+- Elastic IP
+
+All resources are tagged with `Project=lofam`.
+
+### 4. Update EC2_HOST Secret
+
+After provisioning:
+1. Check workflow output for the public IP
+2. Add/update `EC2_HOST` secret with this IP
+
+### 5. Deploy Application
+
+Push to `main` branch triggers automatic deployment:
+1. Runs Go tests
+2. SSHs to EC2
+3. Pulls latest code
+4. Runs `docker-compose -f docker-compose.prod.yml up --build -d`
+
+Or manually: Actions → Deploy → Run workflow
+
+## Workflows
+
+### Infrastructure (`infra.yml`)
+
+Manual trigger only. Actions:
+
+- **provision**: Create/verify EC2, security group, Elastic IP
+- **destroy**: Terminate all resources tagged `Project=lofam`
+
+### Deploy (`deploy.yml`)
+
+Triggers on:
+- Push to `main` branch
+- Manual dispatch
+
+Steps:
+1. Build and test Go backend
+2. SSH to EC2
+3. Git pull and docker-compose up
+
+## Manual Deployment
+
+```bash
+# SSH into instance
+ssh -i ~/.ssh/lofam-key.pem ec2-user@<public-ip>
+
+# Navigate to app
+cd ~/app
+
+# Pull and deploy
+git pull origin main
+docker-compose -f docker-compose.prod.yml up --build -d
+
+# View logs
+docker-compose -f docker-compose.prod.yml logs -f
+```
+
+## Costs
+
+| Resource | Free Tier | After Free Tier |
+|----------|-----------|-----------------|
+| EC2 t3.micro | 750 hrs/month for 12 months | ~$8/month |
+| Elastic IP | Free when attached | ~$4/month if unattached |
+| EBS (20GB gp3) | 30GB free for 12 months | ~$2/month |
+
+**Estimated monthly cost**: $0 (free tier) or ~$10-14/month
+
+## Troubleshooting
+
+### SSH Connection Refused
+
+```bash
+# Check security group allows port 22
+aws ec2 describe-security-groups --filters "Name=tag:Project,Values=lofam"
+```
+
+### Docker Not Running
+
+```bash
+# SSH into instance and check
+sudo systemctl status docker
+sudo systemctl start docker
+```
+
+### Containers Not Starting
+
+```bash
+# Check logs
+docker-compose -f docker-compose.prod.yml logs
+
+# Rebuild
+docker-compose -f docker-compose.prod.yml down
+docker-compose -f docker-compose.prod.yml up --build -d
+```
+
+### Application Not Accessible
+
+```bash
+# Check nginx is running
+docker-compose -f docker-compose.prod.yml ps
+
+# Check port 80 is open
+curl -I http://localhost
+```
+
+## Destroy Infrastructure
+
+To tear down all resources:
+
+1. Go to Actions → Infrastructure → Run workflow
+2. Select action: `destroy`
+3. Click "Run workflow"
+
+This terminates:
+- EC2 instance
+- Releases Elastic IP
+- Deletes security group

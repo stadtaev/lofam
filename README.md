@@ -129,6 +129,10 @@ lofam/
 - React 19
 - Tailwind CSS 4
 
+## Deployment
+
+See [DEPLOYMENT.md](DEPLOYMENT.md) for AWS EC2 deployment with GitHub Actions CI/CD.
+
 ## License
 
 MIT
