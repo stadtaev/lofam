@@ -8,11 +8,62 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	lofamhttp "github.com/stadtaev/lofam/backend/internal/http"
 	"github.com/stadtaev/lofam/backend/internal/sqlite"
 	"github.com/stadtaev/lofam/backend/internal/task"
 )
+
+type wantTask struct {
+	title       string
+	description string
+	priority    string
+	dueDate     string
+}
+
+func assertTask(t *testing.T, got task.Task, want wantTask) {
+	t.Helper()
+
+	if got.ID == 0 {
+		t.Error("expected non-zero ID")
+	}
+	if got.Title != want.title {
+		t.Errorf("title = %q, want %q", got.Title, want.title)
+	}
+	if got.Description != want.description {
+		t.Errorf("description = %q, want %q", got.Description, want.description)
+	}
+	if string(got.Priority) != want.priority {
+		t.Errorf("priority = %q, want %q", got.Priority, want.priority)
+	}
+	if got.Status != "todo" {
+		t.Errorf("status = %q, want %q", got.Status, "todo")
+	}
+	if got.CreatedAt.IsZero() {
+		t.Error("expected non-zero CreatedAt")
+	}
+
+	assertDueDate(t, got.DueDate, want.dueDate)
+}
+
+func assertDueDate(t *testing.T, got *time.Time, want string) {
+	t.Helper()
+
+	if want == "" {
+		if got != nil {
+			t.Errorf("dueDate = %v, want nil", got)
+		}
+		return
+	}
+	if got == nil {
+		t.Errorf("dueDate = nil, want %q", want)
+		return
+	}
+	if got.Format(time.RFC3339) != want {
+		t.Errorf("dueDate = %q, want %q", got.Format(time.RFC3339), want)
+	}
+}
 
 func setupTestServer(t *testing.T) *httptest.Server {
 	t.Helper()
@@ -45,15 +96,13 @@ func TestCreateTask(t *testing.T) {
 		name       string
 		body       map[string]any
 		wantStatus int
-		wantTitle  string
+		want       *wantTask // nil for error cases
 	}{
 		{
-			name: "valid task with title only",
-			body: map[string]any{
-				"title": "Buy groceries",
-			},
+			name:       "valid task with title only",
+			body:       map[string]any{"title": "Buy groceries"},
 			wantStatus: http.StatusCreated,
-			wantTitle:  "Buy groceries",
+			want:       &wantTask{title: "Buy groceries", priority: "medium"},
 		},
 		{
 			name: "valid task with all fields",
@@ -64,7 +113,12 @@ func TestCreateTask(t *testing.T) {
 				"dueDate":     "2025-12-31T00:00:00Z",
 			},
 			wantStatus: http.StatusCreated,
-			wantTitle:  "Complete project",
+			want: &wantTask{
+				title:       "Complete project",
+				description: "Finish the backend API",
+				priority:    "high",
+				dueDate:     "2025-12-31T00:00:00Z",
+			},
 		},
 		{
 			name:       "missing title",
@@ -72,18 +126,13 @@ func TestCreateTask(t *testing.T) {
 			wantStatus: http.StatusBadRequest,
 		},
 		{
-			name: "empty title",
-			body: map[string]any{
-				"title": "",
-			},
+			name:       "empty title",
+			body:       map[string]any{"title": ""},
 			wantStatus: http.StatusBadRequest,
 		},
 		{
-			name: "invalid priority",
-			body: map[string]any{
-				"title":    "Test task",
-				"priority": "invalid",
-			},
+			name:       "invalid priority",
+			body:       map[string]any{"title": "Test task", "priority": "invalid"},
 			wantStatus: http.StatusBadRequest,
 		},
 	}
@@ -102,30 +151,15 @@ func TestCreateTask(t *testing.T) {
 			defer resp.Body.Close()
 
 			if resp.StatusCode != tt.wantStatus {
-				t.Errorf("got status %d, want %d", resp.StatusCode, tt.wantStatus)
+				t.Errorf("status = %d, want %d", resp.StatusCode, tt.wantStatus)
 			}
 
-			if tt.wantStatus == http.StatusCreated {
-				var created task.Task
-				if err := json.NewDecoder(resp.Body).Decode(&created); err != nil {
+			if tt.want != nil {
+				var got task.Task
+				if err := json.NewDecoder(resp.Body).Decode(&got); err != nil {
 					t.Fatalf("failed to decode response: %v", err)
 				}
-
-				if created.Title != tt.wantTitle {
-					t.Errorf("got title %q, want %q", created.Title, tt.wantTitle)
-				}
-
-				if created.ID == 0 {
-					t.Error("expected non-zero ID")
-				}
-
-				if created.Status != "todo" {
-					t.Errorf("got status %q, want %q", created.Status, "todo")
-				}
-
-				if created.CreatedAt.IsZero() {
-					t.Error("expected non-zero CreatedAt")
-				}
+				assertTask(t, got, *tt.want)
 			}
 		})
 	}
