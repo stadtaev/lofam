@@ -17,21 +17,13 @@ A lightweight, self-hosted task management application with calendar view.
 ### Using Docker Compose (Recommended)
 
 ```bash
-docker compose up --build
+docker compose up
 ```
 
 - **Frontend**: http://localhost:3000
 - **Backend API**: http://localhost:8080
 
-### Development Mode with Hot Reload
-
-```bash
-docker compose -f docker-compose.dev.yml up
-```
-
-Runs frontend in dev mode with hot reload - changes reflect instantly without rebuilding.
-
-### Development Mode with Auto-Rebuild
+### Auto-Rebuild on Changes
 
 ```bash
 docker compose watch
@@ -98,13 +90,12 @@ lofam/
 ├── frontend/                # Next.js application
 │   ├── app/                 # App router pages
 │   ├── components/          # React components
-│   │   ├── Calendar.tsx     # Month calendar view
-│   │   ├── TaskList.tsx     # Task list with search
-│   │   ├── TaskModal.tsx    # Create/edit modal
-│   │   └── TodaySection.tsx # Today's tasks
 │   ├── lib/                 # API client & utilities
 │   └── Dockerfile
-└── docker-compose.yml
+├── infrastructure/aws/      # AWS provisioning scripts
+├── .github/workflows/       # CI/CD pipelines
+├── docker-compose.yml       # Development
+└── docker-compose.prod.yml  # Production (with HTTPS)
 ```
 
 ## Configuration

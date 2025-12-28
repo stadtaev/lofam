@@ -43,11 +43,7 @@ lofam/
 ├── infrastructure/
 │   └── aws/
 │       ├── provision.sh         # Idempotent AWS CLI provisioning
-│       ├── init-ssl.sh          # Let's Encrypt certificate setup
-│       ├── main.tf              # Terraform alternative (optional)
-│       ├── variables.tf
-│       ├── outputs.tf
-│       └── provider.tf
+│       └── init-ssl.sh          # Let's Encrypt certificate setup
 ├── .github/workflows/
 │   ├── deploy.yml               # CI/CD pipeline (auto on push)
 │   └── infra.yml                # Infrastructure provisioning (manual)
