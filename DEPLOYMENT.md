@@ -38,19 +38,30 @@ Port 80 redirects to HTTPS. Certificates auto-renew via certbot.
 2. Create key pair (e.g., `lofam-key`)
 3. Download the `.pem` file
 
-### 2. Configure GitHub Secrets
+### 2. Create IAM User for GitHub Actions
+
+1. Go to AWS Console → IAM → Users → Create user
+2. Name: `github-actions`
+3. Attach policy: `AmazonEC2FullAccess`
+4. Click on the created user → Security credentials tab
+5. Click **Create access key**
+6. Select "Third-party service"
+7. Save both keys (secret is shown only once!)
+
+### 3. Configure GitHub Secrets
 
 Go to your repo → Settings → Secrets and variables → Actions → New repository secret
 
-| Secret | Description |
-|--------|-------------|
-| `AWS_ACCESS_KEY_ID` | IAM access key ID |
-| `AWS_SECRET_ACCESS_KEY` | IAM secret access key |
+| Secret | Value |
+|--------|-------|
+| `AWS_ACCESS_KEY_ID` | Access key from step 2 |
+| `AWS_SECRET_ACCESS_KEY` | Secret key from step 2 |
 | `AWS_KEY_NAME` | Key pair name (e.g., `lofam-key`) |
 | `EC2_SSH_KEY` | Contents of the `.pem` file |
-| `EC2_HOST` | EC2 public IP (set after provisioning) |
 
-### 3. Provision Infrastructure
+The EC2 host IP is automatically discovered by querying AWS for the Elastic IP tagged with `Project=lofam`.
+
+### 4. Provision Infrastructure
 
 1. Go to Actions → Infrastructure → Run workflow
 2. Select action: `provision`
@@ -63,13 +74,13 @@ This creates (idempotent):
 
 All resources are tagged with `Project=lofam`.
 
-### 4. Configure DNS
+### 5. Configure DNS
 
 Point your domain to the Elastic IP:
 - A record: `yourdomain.com` → `<elastic-ip>`
 - Or CNAME if using subdomain
 
-### 5. Initialize SSL Certificate
+### 6. Initialize SSL Certificate
 
 SSH into the instance and run the SSL init script:
 
@@ -84,16 +95,12 @@ This:
 2. Requests certificate from Let's Encrypt
 3. Stores certificate in Docker volume
 
-### 6. Update EC2_HOST Secret
-
-Add/update `EC2_HOST` secret with the Elastic IP.
-
 ### 7. Deploy Application
 
 Push to `main` branch triggers automatic deployment:
 1. Runs Go tests
-2. SSHs to EC2
-3. Pulls latest code
+2. Discovers EC2 IP via AWS tag query
+3. SSHs to EC2, pulls latest code
 4. Runs `docker-compose -f docker-compose.prod.yml up --build -d`
 
 Or manually: Actions → Deploy → Run workflow

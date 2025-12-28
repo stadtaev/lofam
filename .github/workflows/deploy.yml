@@ -5,6 +5,9 @@ on:
     branches: [main]
   workflow_dispatch:
 
+env:
+  AWS_REGION: us-east-1
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -30,10 +33,33 @@ jobs:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
 
     steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get EC2 host IP
+        id: ec2
+        run: |
+          IP=$(aws ec2 describe-addresses \
+            --filters "Name=tag:Project,Values=lofam" \
+            --query 'Addresses[0].PublicIp' \
+            --output text)
+          if [ "$IP" = "None" ] || [ -z "$IP" ]; then
+            echo "::error::No Elastic IP found with tag Project=lofam"
+            exit 1
+          fi
+          echo "host=$IP" >> $GITHUB_OUTPUT
+          echo "Found EC2 host: $IP"
+
       - name: Deploy to EC2
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.EC2_HOST }}
+          host: ${{ steps.ec2.outputs.host }}
           username: ec2-user
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
