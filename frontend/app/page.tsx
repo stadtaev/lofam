@@ -58,6 +58,12 @@ export default function Home() {
     }
   };
 
+  const handleToday = () => {
+    const now = new Date();
+    setYear(now.getFullYear());
+    setMonth(now.getMonth());
+  };
+
   const handleDateSelect = (date: Date) => {
     setSelectedDate(date);
   };
@@ -128,6 +134,7 @@ export default function Home() {
             onDateSelect={handleDateSelect}
             onPrevMonth={handlePrevMonth}
             onNextMonth={handleNextMonth}
+            onToday={handleToday}
           />
           <TodaySection tasks={tasks} onAddTask={handleAddTask} />
         </div>

@@ -11,6 +11,7 @@ interface CalendarProps {
   onDateSelect: (date: Date) => void
   onPrevMonth: () => void
   onNextMonth: () => void
+  onToday: () => void
 }
 
 const WEEKDAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
@@ -23,6 +24,7 @@ export function Calendar({
   onDateSelect,
   onPrevMonth,
   onNextMonth,
+  onToday,
 }: CalendarProps) {
   const days = getCalendarDays(year, month)
   const today = new Date()
@@ -44,6 +46,12 @@ export function Calendar({
           <p className="text-gray-400">{year}</p>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={onToday}
+            className="px-3 py-1 text-sm hover:bg-gray-100 rounded text-gray-500"
+          >
+            Today
+          </button>
           <button
             onClick={onPrevMonth}
             className="p-2 hover:bg-gray-100 rounded-full text-gray-400"

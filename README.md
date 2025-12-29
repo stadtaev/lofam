@@ -120,6 +120,33 @@ lofam/
 - React 19
 - Tailwind CSS 4
 
+## Testing
+
+### Backend (Go)
+
+```bash
+cd backend
+go test ./...
+```
+
+### Frontend (Playwright E2E)
+
+**Setup (once):**
+```bash
+cd frontend
+bun install
+bun run test:e2e:install           # install browser
+sudo bunx playwright install-deps  # install system dependencies
+```
+
+**Run tests:**
+```bash
+bun run test:e2e      # headless
+bun run test:e2e:ui   # with UI
+```
+
+Tests automatically start backend and frontend servers.
+
 ## Deployment
 
 See [DEPLOYMENT.md](DEPLOYMENT.md) for AWS EC2 deployment with GitHub Actions CI/CD.
