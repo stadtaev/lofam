@@ -32,6 +32,10 @@ func New(dbPath string) (*DB, error) {
 		return nil, fmt.Errorf("ping database: %w", err)
 	}
 
+	if _, err := db.Exec("PRAGMA journal_mode=WAL"); err != nil {
+		return nil, fmt.Errorf("enable WAL mode: %w", err)
+	}
+
 	return &DB{db}, nil
 }
 
