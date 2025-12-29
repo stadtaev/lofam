@@ -14,7 +14,7 @@ Go backend:80
 
 Single container serves both API and frontend.
 
-Docker images are published to GitHub Container Registry (ghcr.io).
+Docker images are published to Google Artifact Registry.
 
 ---
 
@@ -23,45 +23,69 @@ Docker images are published to GitHub Container Registry (ghcr.io).
 ### Prerequisites
 
 1. GCP project with billing enabled
-2. Cloud Run API enabled
-3. Service account with Cloud Run Admin role
+2. `gcloud` CLI installed and authenticated (`gcloud auth login`)
 
 ### GCP Setup
 
 1. **Create a GCP project** (or use existing):
    ```bash
-   gcloud projects create lofam-project --name="Lofam"
-   gcloud config set project lofam-project
+   gcloud projects create lofam-12345 --name="Lofam"
+   gcloud config set project lofam-12345
+   ```
+   Note: Project ID must be globally unique. Add a random suffix.
+
+2. **Link billing account** (required for Cloud Run):
+   ```bash
+   # List available billing accounts
+   gcloud billing accounts list
+
+   # Link billing to project
+   gcloud billing projects link lofam-12345 \
+     --billing-account=YOUR_BILLING_ACCOUNT_ID
    ```
 
-2. **Enable required APIs**:
+3. **Enable required APIs**:
    ```bash
    gcloud services enable run.googleapis.com
+   gcloud services enable artifactregistry.googleapis.com
    ```
 
-3. **Create service account**:
+4. **Create service account**:
    ```bash
    gcloud iam service-accounts create github-actions \
      --display-name="GitHub Actions"
    ```
 
-4. **Grant permissions**:
+5. **Grant permissions**:
    ```bash
    PROJECT_ID=$(gcloud config get-value project)
 
+   # Cloud Run Admin - deploy services
    gcloud projects add-iam-policy-binding $PROJECT_ID \
      --member="serviceAccount:github-actions@$PROJECT_ID.iam.gserviceaccount.com" \
      --role="roles/run.admin"
 
+   # Service Account User - act as service account
    gcloud projects add-iam-policy-binding $PROJECT_ID \
      --member="serviceAccount:github-actions@$PROJECT_ID.iam.gserviceaccount.com" \
      --role="roles/iam.serviceAccountUser"
+
+   # Artifact Registry Admin - push/pull images
+   gcloud projects add-iam-policy-binding $PROJECT_ID \
+     --member="serviceAccount:github-actions@$PROJECT_ID.iam.gserviceaccount.com" \
+     --role="roles/artifactregistry.admin"
    ```
 
-5. **Create and download key**:
+6. **Create service account key**:
    ```bash
    gcloud iam service-accounts keys create key.json \
      --iam-account=github-actions@$PROJECT_ID.iam.gserviceaccount.com
+
+   # View contents to copy to GitHub
+   cat key.json
+
+   # Delete after adding to GitHub secrets
+   rm key.json
    ```
 
 ### Configure GitHub Secrets
@@ -85,7 +109,7 @@ env:
 Push to `main` branch triggers:
 1. Go build and tests
 2. Build Docker image
-3. Push to ghcr.io
+3. Push to Artifact Registry
 4. Deploy to Cloud Run
 
 ### View Deployment
@@ -97,8 +121,10 @@ gcloud run services describe lofam --region us-central1 --format='value(status.u
 ### Manual Deployment
 
 ```bash
+PROJECT_ID=$(gcloud config get-value project)
+
 gcloud run deploy lofam \
-  --image ghcr.io/your-username/lofam:latest \
+  --image us-central1-docker.pkg.dev/$PROJECT_ID/lofam/app:latest \
   --region us-central1 \
   --platform managed \
   --allow-unauthenticated
