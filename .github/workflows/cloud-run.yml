@@ -64,9 +64,19 @@ jobs:
           docker build -t $IMAGE .
           docker push $IMAGE
 
+      - name: Create Cloud Storage bucket for data (if not exists)
+        env:
+          BUCKET: ${{ steps.auth.outputs.project_id }}-lofam-data
+        run: |
+          gcloud storage buckets describe gs://$BUCKET 2>/dev/null || \
+          gcloud storage buckets create gs://$BUCKET \
+            --location=${{ env.GCP_REGION }} \
+            --uniform-bucket-level-access
+
       - name: Deploy to Cloud Run
         env:
           IMAGE: ${{ env.GCP_REGION }}-docker.pkg.dev/${{ steps.auth.outputs.project_id }}/lofam/app:${{ github.sha }}
+          BUCKET: ${{ steps.auth.outputs.project_id }}-lofam-data
         run: |
           gcloud run deploy ${{ env.CLOUD_RUN_SERVICE }} \
             --image $IMAGE \
@@ -77,4 +87,8 @@ jobs:
             --memory 256Mi \
             --cpu 1 \
             --min-instances 0 \
-            --max-instances 3
+            --max-instances 1 \
+            --execution-environment gen2 \
+            --add-volume name=data,type=cloud-storage,bucket=$BUCKET \
+            --add-volume-mount volume=data,mount-path=/data \
+            --set-env-vars DB_PATH=/data/lofam.db

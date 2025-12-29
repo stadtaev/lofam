@@ -74,6 +74,11 @@ Docker images are published to Google Artifact Registry.
    gcloud projects add-iam-policy-binding $PROJECT_ID \
      --member="serviceAccount:github-actions@$PROJECT_ID.iam.gserviceaccount.com" \
      --role="roles/artifactregistry.admin"
+
+   # Storage Admin - create/manage buckets for data persistence
+   gcloud projects add-iam-policy-binding $PROJECT_ID \
+     --member="serviceAccount:github-actions@$PROJECT_ID.iam.gserviceaccount.com" \
+     --role="roles/storage.admin"
    ```
 
 6. **Create service account key**:
@@ -104,13 +109,21 @@ env:
   CLOUD_RUN_SERVICE: lofam       # Service name in Cloud Run
 ```
 
+### Data Persistence
+
+SQLite database is stored on a Cloud Storage bucket mounted at `/data`.
+- Bucket: `{project-id}-lofam-data`
+- Database: `/data/lofam.db`
+- Max instances limited to 1 (SQLite doesn't support concurrent writers)
+
 ### Deployment
 
 Push to `main` branch triggers:
 1. Go build and tests
 2. Build Docker image
 3. Push to Artifact Registry
-4. Deploy to Cloud Run
+4. Create Cloud Storage bucket (if not exists)
+5. Deploy to Cloud Run with volume mount
 
 ### View Deployment
 
