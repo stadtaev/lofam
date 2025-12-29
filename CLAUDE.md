@@ -10,7 +10,7 @@ lofam/
 │   ├── cmd/server/main.go       # Application entry point, wiring
 │   ├── internal/
 │   │   ├── http/
-│   │   │   ├── server.go        # Router, middleware, CORS, response helpers
+│   │   │   ├── server.go        # Router, middleware, static file serving
 │   │   │   ├── task.go          # Task HTTP handlers
 │   │   │   └── task_integration_test.go  # Integration tests
 │   │   ├── sqlite/
@@ -34,23 +34,19 @@ lofam/
 │   │   ├── TaskModal.tsx        # Create/edit/delete task modal
 │   │   └── TodaySection.tsx     # Today's tasks + add button
 │   ├── lib/
-│   │   ├── api.ts               # Backend API client (fetch wrapper)
+│   │   ├── api.ts               # Backend API client (relative URLs)
 │   │   ├── types.ts             # TypeScript types (Task, CreateTaskRequest, etc.)
 │   │   └── date-utils.ts        # Date helper functions
-│   ├── Dockerfile               # Standalone Next.js build
-│   ├── next.config.ts           # output: 'standalone' for Docker
+│   ├── next.config.ts           # output: 'export' for static build
 │   └── package.json
 ├── infrastructure/
 │   └── ec2.yml                  # CloudFormation template for EC2
 ├── .github/workflows/
 │   ├── deploy.yml               # CI/CD pipeline (test + deploy on push to main)
 │   └── infra.yml                # EC2 provisioning via CloudFormation
+├── Dockerfile                   # Multi-stage build (frontend + backend)
 ├── docker-compose.yml           # Development (hot reload)
-├── docker-compose.prod.yml      # Production - HTTP only
-├── docker-compose.letsencrypt.yml  # Production - HTTPS with Let's Encrypt
-├── nginx.conf                   # HTTP reverse proxy
-├── nginx.letsencrypt.conf       # HTTPS reverse proxy
-├── init-ssl.sh                  # Let's Encrypt certificate setup
+├── docker-compose.prod.yml      # Production (single container)
 └── DEPLOYMENT.md                # EC2 deployment guide
 ```
 
@@ -225,9 +221,12 @@ On push to `main`:
 ### Production Stack
 
 ```
-nginx:80 → frontend:3000 (Next.js)
-         → backend:8080  (Go API via /api/*)
+Go backend:80
+├── /api/*  → API handlers
+└── /*      → Static frontend (SPA)
 ```
+
+Single container serves both API and static frontend.
 
 See `DEPLOYMENT.md` for full setup instructions.
 

@@ -13,6 +13,7 @@ import (
 func main() {
 	dbPath := getEnv("DB_PATH", "lofam.db")
 	port := getEnv("PORT", "8080")
+	staticDir := getEnv("STATIC_DIR", "./static")
 
 	db, err := sqlite.New(dbPath)
 	if err != nil {
@@ -26,9 +27,10 @@ func main() {
 
 	taskStore := sqlite.NewTaskStore(db)
 	taskService := task.NewService(taskStore)
-	server := lofamhttp.NewServer(taskService)
+	server := lofamhttp.NewServer(taskService, staticDir)
 
 	log.Printf("starting server on :%s", port)
+	log.Printf("serving static files from %s", staticDir)
 	if err := http.ListenAndServe(":"+port, server.Router()); err != nil {
 		log.Fatalf("server error: %v", err)
 	}
