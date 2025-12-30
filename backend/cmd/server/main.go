@@ -6,6 +6,7 @@ import (
 	"os"
 
 	lofamhttp "github.com/stadtaev/lofam/backend/internal/http"
+	"github.com/stadtaev/lofam/backend/internal/note"
 	"github.com/stadtaev/lofam/backend/internal/sqlite"
 	"github.com/stadtaev/lofam/backend/internal/task"
 )
@@ -27,7 +28,11 @@ func main() {
 
 	taskStore := sqlite.NewTaskStore(db)
 	taskService := task.NewService(taskStore)
-	server := lofamhttp.NewServer(taskService, staticDir)
+
+	noteStore := sqlite.NewNoteStore(db)
+	noteService := note.NewService(noteStore)
+
+	server := lofamhttp.NewServer(taskService, noteService, staticDir)
 
 	log.Printf("starting server on :%s", port)
 	log.Printf("serving static files from %s", staticDir)

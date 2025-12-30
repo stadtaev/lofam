@@ -15,16 +15,18 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
 
+	"github.com/stadtaev/lofam/backend/internal/note"
 	"github.com/stadtaev/lofam/backend/internal/task"
 )
 
 type Server struct {
 	taskService *task.Service
+	noteService *note.Service
 	staticDir   string
 }
 
-func NewServer(taskService *task.Service, staticDir string) *Server {
-	return &Server{taskService: taskService, staticDir: staticDir}
+func NewServer(taskService *task.Service, noteService *note.Service, staticDir string) *Server {
+	return &Server{taskService: taskService, noteService: noteService, staticDir: staticDir}
 }
 
 func (s *Server) Router() chi.Router {
@@ -53,6 +55,15 @@ func (s *Server) Router() chi.Router {
 				r.Get("/", s.getTask)
 				r.Put("/", s.updateTask)
 				r.Delete("/", s.deleteTask)
+			})
+		})
+		r.Route("/notes", func(r chi.Router) {
+			r.Get("/", s.listNotes)
+			r.Post("/", s.createNote)
+			r.Route("/{id}", func(r chi.Router) {
+				r.Get("/", s.getNote)
+				r.Put("/", s.updateNote)
+				r.Delete("/", s.deleteNote)
 			})
 		})
 	})
@@ -107,15 +118,29 @@ func writeError(w http.ResponseWriter, status int, message string) {
 }
 
 func handleError(w http.ResponseWriter, err error) {
-	var validationErr task.ValidationError
-	if errors.As(err, &validationErr) {
-		writeError(w, http.StatusBadRequest, validationErr.Message)
+	// Task errors
+	var taskValidationErr task.ValidationError
+	if errors.As(err, &taskValidationErr) {
+		writeError(w, http.StatusBadRequest, taskValidationErr.Message)
 		return
 	}
 
-	var notFoundErr task.NotFoundError
-	if errors.As(err, &notFoundErr) {
-		writeError(w, http.StatusNotFound, notFoundErr.Error())
+	var taskNotFoundErr task.NotFoundError
+	if errors.As(err, &taskNotFoundErr) {
+		writeError(w, http.StatusNotFound, taskNotFoundErr.Error())
+		return
+	}
+
+	// Note errors
+	var noteValidationErr note.ValidationError
+	if errors.As(err, &noteValidationErr) {
+		writeError(w, http.StatusBadRequest, noteValidationErr.Message)
+		return
+	}
+
+	var noteNotFoundErr note.NotFoundError
+	if errors.As(err, &noteNotFoundErr) {
+		writeError(w, http.StatusNotFound, noteNotFoundErr.Error())
 		return
 	}
 

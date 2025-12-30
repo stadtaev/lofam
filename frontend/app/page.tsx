@@ -5,11 +5,23 @@ import { Calendar } from "@/components/Calendar";
 import { TaskList } from "@/components/TaskList";
 import { TaskModal } from "@/components/TaskModal";
 import { TodaySection } from "@/components/TodaySection";
-import { listTasks, createTask, updateTask, deleteTask } from "@/lib/api";
-import type { Task, CreateTaskRequest } from "@/lib/types";
+import { NoteList } from "@/components/NoteList";
+import { NoteModal } from "@/components/NoteModal";
+import {
+  listTasks,
+  createTask,
+  updateTask,
+  deleteTask,
+  listNotes,
+  createNote,
+  updateNote,
+  deleteNote,
+} from "@/lib/api";
+import type { Task, CreateTaskRequest, Note, CreateNoteRequest } from "@/lib/types";
 
 export default function Home() {
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [notes, setNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -19,26 +31,40 @@ export default function Home() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
 
-  const [showModal, setShowModal] = useState(false);
+  const [showTaskModal, setShowTaskModal] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+
+  const [showNoteModal, setShowNoteModal] = useState(false);
+  const [editingNote, setEditingNote] = useState<Note | null>(null);
 
   const fetchTasks = useCallback(async () => {
     try {
-      setLoading(true);
       const data = await listTasks();
       setTasks(data || []);
-      setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to fetch tasks");
       setTasks([]);
-    } finally {
-      setLoading(false);
+    }
+  }, []);
+
+  const fetchNotes = useCallback(async () => {
+    try {
+      const data = await listNotes();
+      setNotes(data || []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to fetch notes");
+      setNotes([]);
     }
   }, []);
 
   useEffect(() => {
-    fetchTasks();
-  }, [fetchTasks]);
+    const fetchData = async () => {
+      setLoading(true);
+      await Promise.all([fetchTasks(), fetchNotes()]);
+      setLoading(false);
+    };
+    fetchData();
+  }, [fetchTasks, fetchNotes]);
 
   const handlePrevMonth = () => {
     if (month === 0) {
@@ -70,12 +96,12 @@ export default function Home() {
 
   const handleTaskClick = (task: Task) => {
     setEditingTask(task);
-    setShowModal(true);
+    setShowTaskModal(true);
   };
 
   const handleAddTask = () => {
     setEditingTask(null);
-    setShowModal(true);
+    setShowTaskModal(true);
   };
 
   const handleSaveTask = async (data: CreateTaskRequest) => {
@@ -85,7 +111,7 @@ export default function Home() {
       } else {
         await createTask(data);
       }
-      setShowModal(false);
+      setShowTaskModal(false);
       setEditingTask(null);
       fetchTasks();
     } catch (err) {
@@ -97,11 +123,52 @@ export default function Home() {
     if (!editingTask) return;
     try {
       await deleteTask(editingTask.id);
-      setShowModal(false);
+      setShowTaskModal(false);
       setEditingTask(null);
       fetchTasks();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to delete task");
+    }
+  };
+
+  const handleAddNote = () => {
+    setEditingNote(null);
+    setShowNoteModal(true);
+  };
+
+  const handleEditNote = (note: Note) => {
+    setEditingNote(note);
+    setShowNoteModal(true);
+  };
+
+  const handleSaveNote = async (data: CreateNoteRequest) => {
+    try {
+      if (editingNote) {
+        await updateNote(editingNote.id, {
+          title: data.title,
+          content: data.content ?? "",
+          color: data.color,
+        });
+      } else {
+        await createNote(data);
+      }
+      setShowNoteModal(false);
+      setEditingNote(null);
+      fetchNotes();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save note");
+    }
+  };
+
+  const handleDeleteNote = async () => {
+    if (!editingNote) return;
+    try {
+      await deleteNote(editingNote.id);
+      setShowNoteModal(false);
+      setEditingNote(null);
+      fetchNotes();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete note");
     }
   };
 
@@ -114,9 +181,9 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-white p-8">
+    <div className="min-h-screen bg-white p-4 lg:p-8">
       {error && (
-        <div className="fixed top-4 right-4 bg-red-100 text-red-600 px-4 py-2 rounded-lg">
+        <div className="fixed top-4 right-4 bg-red-100 text-red-600 px-4 py-2 rounded-lg z-40">
           {error}
           <button onClick={() => setError(null)} className="ml-2">
             ✕
@@ -124,39 +191,68 @@ export default function Home() {
         </div>
       )}
 
-      <div className="max-w-6xl mx-auto flex flex-col lg:flex-row gap-8">
-        <div className="shrink-0">
-          <Calendar
-            year={year}
-            month={month}
-            tasks={tasks}
-            selectedDate={selectedDate}
-            onDateSelect={handleDateSelect}
-            onPrevMonth={handlePrevMonth}
-            onNextMonth={handleNextMonth}
-            onToday={handleToday}
-          />
-          <TodaySection tasks={tasks} onAddTask={handleAddTask} />
-        </div>
+      <div className="max-w-7xl mx-auto">
+        <div className="flex flex-col xl:flex-row gap-6">
+          {/* Left: Calendar + Today */}
+          <div className="shrink-0">
+            <Calendar
+              year={year}
+              month={month}
+              tasks={tasks}
+              selectedDate={selectedDate}
+              onDateSelect={handleDateSelect}
+              onPrevMonth={handlePrevMonth}
+              onNextMonth={handleNextMonth}
+              onToday={handleToday}
+            />
+            <TodaySection tasks={tasks} onAddTask={handleAddTask} />
+          </div>
 
-        <TaskList
-          tasks={tasks}
-          month={month}
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-          onTaskClick={handleTaskClick}
-        />
+          {/* Middle: Task List */}
+          <div className="flex-1 min-w-0">
+            <TaskList
+              tasks={tasks}
+              month={month}
+              searchQuery={searchQuery}
+              onSearchChange={setSearchQuery}
+              onTaskClick={handleTaskClick}
+            />
+          </div>
+
+          {/* Right: Notes Sidebar (desktop) / Below (mobile) */}
+          <div className="w-full xl:w-72 shrink-0">
+            <div className="bg-gray-50 rounded-lg p-4 h-full max-h-[600px]">
+              <NoteList
+                notes={notes}
+                onAdd={handleAddNote}
+                onEdit={handleEditNote}
+              />
+            </div>
+          </div>
+        </div>
       </div>
 
-      {showModal && (
+      {showTaskModal && (
         <TaskModal
           task={editingTask}
           initialDate={selectedDate}
           onSave={handleSaveTask}
           onDelete={editingTask ? handleDeleteTask : undefined}
           onClose={() => {
-            setShowModal(false);
+            setShowTaskModal(false);
             setEditingTask(null);
+          }}
+        />
+      )}
+
+      {showNoteModal && (
+        <NoteModal
+          note={editingNote}
+          onSave={handleSaveNote}
+          onDelete={editingNote ? handleDeleteNote : undefined}
+          onClose={() => {
+            setShowNoteModal(false);
+            setEditingNote(null);
           }}
         />
       )}

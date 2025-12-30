@@ -26,3 +26,26 @@ export interface UpdateTaskRequest {
   priority?: TaskPriority
   dueDate?: string | null
 }
+
+export type NoteColor = 'yellow' | 'pink' | 'green'
+
+export interface Note {
+  id: number
+  title: string
+  content: string
+  color: NoteColor
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CreateNoteRequest {
+  title: string
+  content?: string
+  color: NoteColor
+}
+
+export interface UpdateNoteRequest {
+  title: string
+  content: string
+  color: NoteColor
+}

@@ -1,4 +1,11 @@
-import type { Task, CreateTaskRequest, UpdateTaskRequest } from './types'
+import type {
+  Task,
+  CreateTaskRequest,
+  UpdateTaskRequest,
+  Note,
+  CreateNoteRequest,
+  UpdateNoteRequest,
+} from './types'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || ''
 
@@ -40,6 +47,44 @@ export async function updateTask(id: number, data: UpdateTaskRequest): Promise<T
 
 export async function deleteTask(id: number): Promise<void> {
   const response = await fetch(`${API_BASE}/api/tasks/${id}`, {
+    method: 'DELETE',
+  })
+  if (!response.ok) {
+    const error = await response.text()
+    throw new Error(error || `HTTP ${response.status}`)
+  }
+}
+
+export async function listNotes(): Promise<Note[]> {
+  const response = await fetch(`${API_BASE}/api/notes`)
+  return handleResponse<Note[]>(response)
+}
+
+export async function getNote(id: number): Promise<Note> {
+  const response = await fetch(`${API_BASE}/api/notes/${id}`)
+  return handleResponse<Note>(response)
+}
+
+export async function createNote(data: CreateNoteRequest): Promise<Note> {
+  const response = await fetch(`${API_BASE}/api/notes`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  })
+  return handleResponse<Note>(response)
+}
+
+export async function updateNote(id: number, data: UpdateNoteRequest): Promise<Note> {
+  const response = await fetch(`${API_BASE}/api/notes/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  })
+  return handleResponse<Note>(response)
+}
+
+export async function deleteNote(id: number): Promise<void> {
+  const response = await fetch(`${API_BASE}/api/notes/${id}`, {
     method: 'DELETE',
   })
   if (!response.ok) {
