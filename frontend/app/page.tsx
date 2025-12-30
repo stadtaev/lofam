@@ -7,6 +7,7 @@ import { TaskModal } from "@/components/TaskModal";
 import { TodaySection } from "@/components/TodaySection";
 import { NoteList } from "@/components/NoteList";
 import { NoteModal } from "@/components/NoteModal";
+import { TimelineCalendar } from "@/components/TimelineCalendar";
 import {
   listTasks,
   createTask,
@@ -201,6 +202,11 @@ export default function Home() {
       )}
 
       <div className="max-w-7xl mx-auto">
+        {/* Horizontal Timeline */}
+        <div className="mb-6">
+          <TimelineCalendar />
+        </div>
+
         <div className="flex flex-col xl:flex-row gap-6">
           {/* Left: Calendar + Today */}
           <div className="shrink-0">
