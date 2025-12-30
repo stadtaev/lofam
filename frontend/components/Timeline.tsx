@@ -1,11 +1,16 @@
 "use client";
 
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, useCallback } from "react";
+import { isSameDay, formatDateKey } from "@/lib/date-utils";
+import type { Task } from "@/lib/types";
 
 const MONTHS = [
   "JAN", "FEB", "MAR", "APR", "MAY", "JUN",
   "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"
 ];
+
+const DAY_WIDTH = 240; // Width of each day section in pixels
+const DAYS_TO_SHOW = 15;
 
 type TimelineDay = {
   date: Date;
@@ -39,24 +44,55 @@ function formatHour(hour: number): string {
   return `${String(hour).padStart(2, "0")}:00`;
 }
 
-export function TimelineCalendar() {
+interface TimelineProps {
+  selectedDate: Date | null;
+  onDateSelect: (date: Date) => void;
+  tasks: Task[];
+}
+
+const PRIORITY_COLORS = {
+  low: "bg-green-400",
+  medium: "bg-yellow-400",
+  high: "bg-red-400",
+} as const;
+
+export function Timeline({ selectedDate, onDateSelect, tasks }: TimelineProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const [centerDate, setCenterDate] = useState(new Date());
+  const [centerDate, setCenterDate] = useState(selectedDate || new Date());
   const [isDragging, setIsDragging] = useState(false);
   const [startX, setStartX] = useState(0);
   const [scrollLeft, setScrollLeft] = useState(0);
+  const isScrollingRef = useRef(false);
 
-  const days = generateDays(centerDate, 15);
+  const days = generateDays(centerDate, DAYS_TO_SHOW);
+  const today = new Date();
 
-  // Center scroll on mount
+  // Group tasks by date
+  const tasksByDate = tasks.reduce((acc, task) => {
+    if (task.dueDate) {
+      const key = task.dueDate.split("T")[0];
+      if (!acc[key]) acc[key] = [];
+      acc[key].push(task);
+    }
+    return acc;
+  }, {} as Record<string, Task[]>);
+
+  // Sync centerDate when selectedDate changes externally
+  useEffect(() => {
+    if (selectedDate && !isScrollingRef.current) {
+      setCenterDate(selectedDate);
+    }
+  }, [selectedDate]);
+
+  // Center scroll on mount and when centerDate changes
   useEffect(() => {
     if (scrollRef.current) {
       const scrollWidth = scrollRef.current.scrollWidth;
       const clientWidth = scrollRef.current.clientWidth;
       scrollRef.current.scrollLeft = (scrollWidth - clientWidth) / 2;
     }
-  }, []);
+  }, [centerDate]);
 
   // Horizontal scroll with mouse wheel
   useEffect(() => {
@@ -71,6 +107,28 @@ export function TimelineCalendar() {
     el.addEventListener("wheel", handleWheel, { passive: false });
     return () => el.removeEventListener("wheel", handleWheel);
   }, []);
+
+  // Track scroll position to determine selected date
+  const handleScroll = useCallback(() => {
+    if (!scrollRef.current) return;
+
+    isScrollingRef.current = true;
+
+    const el = scrollRef.current;
+    const centerX = el.scrollLeft + el.clientWidth / 2;
+    const dayIndex = Math.floor(centerX / DAY_WIDTH);
+    const clampedIndex = Math.max(0, Math.min(dayIndex, days.length - 1));
+    const newSelectedDate = days[clampedIndex]?.date;
+
+    if (newSelectedDate && (!selectedDate || !isSameDay(newSelectedDate, selectedDate))) {
+      onDateSelect(newSelectedDate);
+    }
+
+    // Reset scrolling flag after a short delay
+    setTimeout(() => {
+      isScrollingRef.current = false;
+    }, 100);
+  }, [days, selectedDate, onDateSelect]);
 
   // Drag to scroll
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -90,37 +148,39 @@ export function TimelineCalendar() {
 
   const handleMouseUp = () => {
     setIsDragging(false);
+    handleScroll();
   };
 
   const handleMouseLeave = () => {
-    setIsDragging(false);
+    if (isDragging) {
+      setIsDragging(false);
+      handleScroll();
+    }
   };
 
   const jumpDays = (delta: number) => {
-    setCenterDate((prev) => {
-      const next = new Date(prev);
-      next.setDate(next.getDate() + delta);
-      return next;
-    });
+    const newDate = new Date(centerDate);
+    newDate.setDate(newDate.getDate() + delta);
+    setCenterDate(newDate);
+    onDateSelect(newDate);
   };
 
   const goToToday = () => {
-    setCenterDate(new Date());
-    // Re-center scroll
-    setTimeout(() => {
-      if (scrollRef.current) {
-        const scrollWidth = scrollRef.current.scrollWidth;
-        const clientWidth = scrollRef.current.clientWidth;
-        scrollRef.current.scrollLeft = (scrollWidth - clientWidth) / 2;
-      }
-    }, 0);
+    const now = new Date();
+    setCenterDate(now);
+    onDateSelect(now);
+  };
+
+  const handleDayClick = (date: Date) => {
+    onDateSelect(date);
+    setCenterDate(date);
   };
 
   return (
     <div
       ref={containerRef}
       className="relative w-full bg-slate-900 rounded-xl overflow-hidden select-none"
-      style={{ height: "100px" }}
+      style={{ height: "120px" }}
     >
       {/* Navigation buttons */}
       <div className="absolute left-3 top-1/2 -translate-y-1/2 z-10 flex flex-col gap-1">
@@ -172,20 +232,48 @@ export function TimelineCalendar() {
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseLeave}
+        onScroll={handleScroll}
         style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
       >
         <div className="h-full flex items-end pb-3" style={{ width: "max-content" }}>
           {days.map((day, dayIndex) => {
-            const isToday =
-              day.date.toDateString() === new Date().toDateString();
+            const isToday = isSameDay(day.date, today);
+            const isSelected = selectedDate && isSameDay(day.date, selectedDate);
+            const dateKey = formatDateKey(day.date);
+            const dayTasks = tasksByDate[dateKey] || [];
 
             return (
-              <div key={dayIndex} className="flex flex-col">
+              <div
+                key={dayIndex}
+                className="flex flex-col cursor-pointer"
+                style={{ width: `${DAY_WIDTH}px` }}
+                onClick={() => handleDayClick(day.date)}
+              >
+                {/* Task dots */}
+                <div className="h-5 flex items-center gap-1 px-2">
+                  {dayTasks.slice(0, 5).map((task) => (
+                    <div
+                      key={task.id}
+                      className={`w-3 h-3 rounded-full ${PRIORITY_COLORS[task.priority]} shadow-lg`}
+                      title={task.title}
+                    />
+                  ))}
+                  {dayTasks.length > 5 && (
+                    <span className="text-[10px] text-slate-400">
+                      +{dayTasks.length - 5}
+                    </span>
+                  )}
+                </div>
+
                 {/* Date label */}
                 <div className="h-6 flex items-center px-2">
                   <span
-                    className={`text-xs font-medium tracking-wide ${
-                      isToday ? "text-white" : "text-slate-400"
+                    className={`text-xs font-medium tracking-wide transition-colors ${
+                      isSelected
+                        ? "text-red-400"
+                        : isToday
+                        ? "text-white"
+                        : "text-slate-400"
                     }`}
                   >
                     {day.label}

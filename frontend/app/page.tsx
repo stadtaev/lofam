@@ -7,7 +7,7 @@ import { TaskModal } from "@/components/TaskModal";
 import { TodaySection } from "@/components/TodaySection";
 import { NoteList } from "@/components/NoteList";
 import { NoteModal } from "@/components/NoteModal";
-import { TimelineCalendar } from "@/components/TimelineCalendar";
+import { Timeline } from "@/components/Timeline";
 import {
   listTasks,
   createTask,
@@ -93,6 +93,9 @@ export default function Home() {
 
   const handleDateSelect = (date: Date) => {
     setSelectedDate(date);
+    // Sync calendar month/year to show the selected date
+    setYear(date.getFullYear());
+    setMonth(date.getMonth());
   };
 
   const handleTaskClick = (task: Task) => {
@@ -204,7 +207,11 @@ export default function Home() {
       <div className="max-w-7xl mx-auto">
         {/* Horizontal Timeline */}
         <div className="mb-6">
-          <TimelineCalendar />
+          <Timeline
+            selectedDate={selectedDate}
+            onDateSelect={handleDateSelect}
+            tasks={tasks}
+          />
         </div>
 
         <div className="flex flex-col xl:flex-row gap-6">
