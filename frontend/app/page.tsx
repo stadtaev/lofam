@@ -172,6 +172,15 @@ export default function Home() {
     }
   };
 
+  const handleDeleteNoteDirectly = async (note: Note) => {
+    try {
+      await deleteNote(note.id);
+      fetchNotes();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete note");
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -226,6 +235,7 @@ export default function Home() {
                 notes={notes}
                 onAdd={handleAddNote}
                 onEdit={handleEditNote}
+                onDelete={handleDeleteNoteDirectly}
               />
             </div>
           </div>
