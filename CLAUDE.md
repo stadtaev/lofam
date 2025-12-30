@@ -93,6 +93,9 @@ http.Server
 **Database:**
 - `modernc.org/sqlite` (pure Go, no CGO)
 - Parameterized queries (no SQL injection)
+- **Migrations are embedded in `internal/sqlite/db.go`** - not in separate files
+- The `backend/migrations/` folder is legacy/unused - do not add new files there
+- To add a new table: edit the `Migrate()` function in `db.go` with `CREATE TABLE IF NOT EXISTS`
 
 ## Frontend Architecture
 
@@ -118,11 +121,31 @@ http.Server
 ## API Endpoints
 
 ```
+# Tasks
 GET    /api/tasks      - List all tasks
 POST   /api/tasks      - Create task
 GET    /api/tasks/{id} - Get task by ID
 PUT    /api/tasks/{id} - Update task
 DELETE /api/tasks/{id} - Delete task
+
+# Notes
+GET    /api/notes      - List all notes
+POST   /api/notes      - Create note
+GET    /api/notes/{id} - Get note by ID
+PUT    /api/notes/{id} - Update note
+DELETE /api/notes/{id} - Delete note
+
+# Wishlists
+GET    /api/wishlists      - List all wishlist items
+POST   /api/wishlists      - Create wishlist item
+GET    /api/wishlists/{id} - Get wishlist item by ID
+PUT    /api/wishlists/{id} - Update wishlist item
+DELETE /api/wishlists/{id} - Delete wishlist item
+
+# Shopping
+GET    /api/shopping      - List all shopping items
+POST   /api/shopping      - Create shopping item
+DELETE /api/shopping/{id} - Delete shopping item
 ```
 
 ## Domain Model

@@ -72,3 +72,13 @@ export interface UpdateWishlistRequest {
   content: string
   color: WishlistColor
 }
+
+export interface ShoppingItem {
+  id: number
+  title: string
+  createdAt: string
+}
+
+export interface CreateShoppingItemRequest {
+  title: string
+}

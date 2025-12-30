@@ -74,6 +74,14 @@ func (db *DB) Migrate() error {
 	);
 
 	CREATE INDEX IF NOT EXISTS idx_wishlists_created_at ON wishlists(created_at DESC);
+
+	CREATE TABLE IF NOT EXISTS shopping_items (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		title TEXT NOT NULL,
+		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+	);
+
+	CREATE INDEX IF NOT EXISTS idx_shopping_items_created_at ON shopping_items(created_at DESC);
 	`
 
 	if _, err := db.Exec(schema); err != nil {

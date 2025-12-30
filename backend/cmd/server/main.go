@@ -7,6 +7,7 @@ import (
 
 	lofamhttp "github.com/stadtaev/lofam/backend/internal/http"
 	"github.com/stadtaev/lofam/backend/internal/note"
+	"github.com/stadtaev/lofam/backend/internal/shopping"
 	"github.com/stadtaev/lofam/backend/internal/sqlite"
 	"github.com/stadtaev/lofam/backend/internal/task"
 	"github.com/stadtaev/lofam/backend/internal/wishlist"
@@ -36,7 +37,10 @@ func main() {
 	wishlistStore := sqlite.NewWishlistStore(db)
 	wishlistService := wishlist.NewService(wishlistStore)
 
-	server := lofamhttp.NewServer(taskService, noteService, wishlistService, staticDir)
+	shoppingStore := sqlite.NewShoppingStore(db)
+	shoppingService := shopping.NewService(shoppingStore)
+
+	server := lofamhttp.NewServer(taskService, noteService, wishlistService, shoppingService, staticDir)
 
 	log.Printf("starting server on :%s", port)
 	log.Printf("serving static files from %s", staticDir)

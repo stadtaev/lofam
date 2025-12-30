@@ -8,6 +8,8 @@ import type {
   Wishlist,
   CreateWishlistRequest,
   UpdateWishlistRequest,
+  ShoppingItem,
+  CreateShoppingItemRequest,
 } from './types'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || ''
@@ -126,6 +128,30 @@ export async function updateWishlist(id: number, data: UpdateWishlistRequest): P
 
 export async function deleteWishlist(id: number): Promise<void> {
   const response = await fetch(`${API_BASE}/api/wishlists/${id}`, {
+    method: 'DELETE',
+  })
+  if (!response.ok) {
+    const error = await response.text()
+    throw new Error(error || `HTTP ${response.status}`)
+  }
+}
+
+export async function listShoppingItems(): Promise<ShoppingItem[]> {
+  const response = await fetch(`${API_BASE}/api/shopping`)
+  return handleResponse<ShoppingItem[]>(response)
+}
+
+export async function createShoppingItem(data: CreateShoppingItemRequest): Promise<ShoppingItem> {
+  const response = await fetch(`${API_BASE}/api/shopping`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  })
+  return handleResponse<ShoppingItem>(response)
+}
+
+export async function deleteShoppingItem(id: number): Promise<void> {
+  const response = await fetch(`${API_BASE}/api/shopping/${id}`, {
     method: 'DELETE',
   })
   if (!response.ok) {

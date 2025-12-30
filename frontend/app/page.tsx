@@ -8,6 +8,7 @@ import { TodaySection } from "@/components/TodaySection";
 import { NoteList } from "@/components/NoteList";
 import { NoteModal } from "@/components/NoteModal";
 import { Timeline } from "@/components/Timeline";
+import { ShoppingList } from "@/components/ShoppingList";
 import {
   listTasks,
   createTask,
@@ -17,12 +18,16 @@ import {
   createNote,
   updateNote,
   deleteNote,
+  listShoppingItems,
+  createShoppingItem,
+  deleteShoppingItem,
 } from "@/lib/api";
-import type { Task, CreateTaskRequest, Note, CreateNoteRequest } from "@/lib/types";
+import type { Task, CreateTaskRequest, Note, CreateNoteRequest, ShoppingItem } from "@/lib/types";
 
 export default function Home() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
+  const [shoppingItems, setShoppingItems] = useState<ShoppingItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -58,14 +63,24 @@ export default function Home() {
     }
   }, []);
 
+  const fetchShoppingItems = useCallback(async () => {
+    try {
+      const data = await listShoppingItems();
+      setShoppingItems(data || []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to fetch shopping items");
+      setShoppingItems([]);
+    }
+  }, []);
+
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
-      await Promise.all([fetchTasks(), fetchNotes()]);
+      await Promise.all([fetchTasks(), fetchNotes(), fetchShoppingItems()]);
       setLoading(false);
     };
     fetchData();
-  }, [fetchTasks, fetchNotes]);
+  }, [fetchTasks, fetchNotes, fetchShoppingItems]);
 
   const handlePrevMonth = () => {
     if (month === 0) {
@@ -185,6 +200,24 @@ export default function Home() {
     }
   };
 
+  const handleAddShoppingItem = async (title: string) => {
+    try {
+      await createShoppingItem({ title });
+      fetchShoppingItems();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to add shopping item");
+    }
+  };
+
+  const handleDeleteShoppingItem = async (id: number) => {
+    try {
+      await deleteShoppingItem(id);
+      fetchShoppingItems();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete shopping item");
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -215,7 +248,7 @@ export default function Home() {
         </div>
 
         <div className="flex flex-col xl:flex-row gap-6">
-          {/* Left: Calendar + Today */}
+          {/* Left: Calendar + Today + Shopping */}
           <div className="shrink-0">
             <Calendar
               year={year}
@@ -228,6 +261,13 @@ export default function Home() {
               onToday={handleToday}
             />
             <TodaySection tasks={tasks} onAddTask={handleAddTask} />
+            <div className="mt-4">
+              <ShoppingList
+                items={shoppingItems}
+                onAdd={handleAddShoppingItem}
+                onDelete={handleDeleteShoppingItem}
+              />
+            </div>
           </div>
 
           {/* Middle: Task List */}

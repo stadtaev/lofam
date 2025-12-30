@@ -16,6 +16,7 @@ import (
 	"github.com/go-chi/cors"
 
 	"github.com/stadtaev/lofam/backend/internal/note"
+	"github.com/stadtaev/lofam/backend/internal/shopping"
 	"github.com/stadtaev/lofam/backend/internal/task"
 	"github.com/stadtaev/lofam/backend/internal/wishlist"
 )
@@ -24,11 +25,12 @@ type Server struct {
 	taskService     *task.Service
 	noteService     *note.Service
 	wishlistService *wishlist.Service
+	shoppingService *shopping.Service
 	staticDir       string
 }
 
-func NewServer(taskService *task.Service, noteService *note.Service, wishlistService *wishlist.Service, staticDir string) *Server {
-	return &Server{taskService: taskService, noteService: noteService, wishlistService: wishlistService, staticDir: staticDir}
+func NewServer(taskService *task.Service, noteService *note.Service, wishlistService *wishlist.Service, shoppingService *shopping.Service, staticDir string) *Server {
+	return &Server{taskService: taskService, noteService: noteService, wishlistService: wishlistService, shoppingService: shoppingService, staticDir: staticDir}
 }
 
 func (s *Server) Router() chi.Router {
@@ -76,6 +78,11 @@ func (s *Server) Router() chi.Router {
 				r.Put("/", s.updateWishlist)
 				r.Delete("/", s.deleteWishlist)
 			})
+		})
+		r.Route("/shopping", func(r chi.Router) {
+			r.Get("/", s.listShoppingItems)
+			r.Post("/", s.createShoppingItem)
+			r.Delete("/{id}", s.deleteShoppingItem)
 		})
 	})
 
@@ -165,6 +172,19 @@ func handleError(w http.ResponseWriter, err error) {
 	var wishlistNotFoundErr wishlist.NotFoundError
 	if errors.As(err, &wishlistNotFoundErr) {
 		writeError(w, http.StatusNotFound, wishlistNotFoundErr.Error())
+		return
+	}
+
+	// Shopping errors
+	var shoppingValidationErr shopping.ValidationError
+	if errors.As(err, &shoppingValidationErr) {
+		writeError(w, http.StatusBadRequest, shoppingValidationErr.Message)
+		return
+	}
+
+	var shoppingNotFoundErr shopping.NotFoundError
+	if errors.As(err, &shoppingNotFoundErr) {
+		writeError(w, http.StatusNotFound, shoppingNotFoundErr.Error())
 		return
 	}
 
