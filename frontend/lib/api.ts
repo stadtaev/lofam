@@ -5,6 +5,9 @@ import type {
   Note,
   CreateNoteRequest,
   UpdateNoteRequest,
+  Wishlist,
+  CreateWishlistRequest,
+  UpdateWishlistRequest,
 } from './types'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || ''
@@ -85,6 +88,44 @@ export async function updateNote(id: number, data: UpdateNoteRequest): Promise<N
 
 export async function deleteNote(id: number): Promise<void> {
   const response = await fetch(`${API_BASE}/api/notes/${id}`, {
+    method: 'DELETE',
+  })
+  if (!response.ok) {
+    const error = await response.text()
+    throw new Error(error || `HTTP ${response.status}`)
+  }
+}
+
+export async function listWishlists(): Promise<Wishlist[]> {
+  const response = await fetch(`${API_BASE}/api/wishlists`)
+  return handleResponse<Wishlist[]>(response)
+}
+
+export async function getWishlist(id: number): Promise<Wishlist> {
+  const response = await fetch(`${API_BASE}/api/wishlists/${id}`)
+  return handleResponse<Wishlist>(response)
+}
+
+export async function createWishlist(data: CreateWishlistRequest): Promise<Wishlist> {
+  const response = await fetch(`${API_BASE}/api/wishlists`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  })
+  return handleResponse<Wishlist>(response)
+}
+
+export async function updateWishlist(id: number, data: UpdateWishlistRequest): Promise<Wishlist> {
+  const response = await fetch(`${API_BASE}/api/wishlists/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  })
+  return handleResponse<Wishlist>(response)
+}
+
+export async function deleteWishlist(id: number): Promise<void> {
+  const response = await fetch(`${API_BASE}/api/wishlists/${id}`, {
     method: 'DELETE',
   })
   if (!response.ok) {

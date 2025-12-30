@@ -17,16 +17,18 @@ import (
 
 	"github.com/stadtaev/lofam/backend/internal/note"
 	"github.com/stadtaev/lofam/backend/internal/task"
+	"github.com/stadtaev/lofam/backend/internal/wishlist"
 )
 
 type Server struct {
-	taskService *task.Service
-	noteService *note.Service
-	staticDir   string
+	taskService     *task.Service
+	noteService     *note.Service
+	wishlistService *wishlist.Service
+	staticDir       string
 }
 
-func NewServer(taskService *task.Service, noteService *note.Service, staticDir string) *Server {
-	return &Server{taskService: taskService, noteService: noteService, staticDir: staticDir}
+func NewServer(taskService *task.Service, noteService *note.Service, wishlistService *wishlist.Service, staticDir string) *Server {
+	return &Server{taskService: taskService, noteService: noteService, wishlistService: wishlistService, staticDir: staticDir}
 }
 
 func (s *Server) Router() chi.Router {
@@ -64,6 +66,15 @@ func (s *Server) Router() chi.Router {
 				r.Get("/", s.getNote)
 				r.Put("/", s.updateNote)
 				r.Delete("/", s.deleteNote)
+			})
+		})
+		r.Route("/wishlists", func(r chi.Router) {
+			r.Get("/", s.listWishlists)
+			r.Post("/", s.createWishlist)
+			r.Route("/{id}", func(r chi.Router) {
+				r.Get("/", s.getWishlist)
+				r.Put("/", s.updateWishlist)
+				r.Delete("/", s.deleteWishlist)
 			})
 		})
 	})
@@ -141,6 +152,19 @@ func handleError(w http.ResponseWriter, err error) {
 	var noteNotFoundErr note.NotFoundError
 	if errors.As(err, &noteNotFoundErr) {
 		writeError(w, http.StatusNotFound, noteNotFoundErr.Error())
+		return
+	}
+
+	// Wishlist errors
+	var wishlistValidationErr wishlist.ValidationError
+	if errors.As(err, &wishlistValidationErr) {
+		writeError(w, http.StatusBadRequest, wishlistValidationErr.Message)
+		return
+	}
+
+	var wishlistNotFoundErr wishlist.NotFoundError
+	if errors.As(err, &wishlistNotFoundErr) {
+		writeError(w, http.StatusNotFound, wishlistNotFoundErr.Error())
 		return
 	}
 

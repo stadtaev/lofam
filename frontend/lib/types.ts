@@ -49,3 +49,26 @@ export interface UpdateNoteRequest {
   content: string
   color: NoteColor
 }
+
+export type WishlistColor = NoteColor
+
+export interface Wishlist {
+  id: number
+  title: string
+  content: string
+  color: WishlistColor
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CreateWishlistRequest {
+  title: string
+  content?: string
+  color: WishlistColor
+}
+
+export interface UpdateWishlistRequest {
+  title: string
+  content: string
+  color: WishlistColor
+}
