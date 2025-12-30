@@ -1,16 +1,23 @@
+import {
+  format,
+  isSameDay as dateFnsIsSameDay,
+  getDaysInMonth as dateFnsGetDaysInMonth,
+  startOfMonth,
+  getDay,
+  eachDayOfInterval,
+  endOfMonth,
+} from 'date-fns'
+
 export function getDaysInMonth(year: number, month: number): Date[] {
-  const days: Date[] = []
-  const date = new Date(year, month, 1)
-  while (date.getMonth() === month) {
-    days.push(new Date(date))
-    date.setDate(date.getDate() + 1)
-  }
-  return days
+  const start = new Date(year, month, 1)
+  const end = endOfMonth(start)
+  return eachDayOfInterval({ start, end })
 }
 
 export function getCalendarDays(year: number, month: number): (Date | null)[] {
   const days = getDaysInMonth(year, month)
-  const firstDay = days[0].getDay()
+  const firstDay = getDay(days[0])
+  // Adjust for Monday start (0 = Monday, 6 = Sunday)
   const startPadding = firstDay === 0 ? 6 : firstDay - 1
 
   const calendar: (Date | null)[] = []
@@ -23,17 +30,17 @@ export function getCalendarDays(year: number, month: number): (Date | null)[] {
 }
 
 export function formatDateKey(date: Date): string {
-  return date.toISOString().split('T')[0]
+  return format(date, 'yyyy-MM-dd')
 }
 
 export function isSameDay(date1: Date, date2: Date): boolean {
-  return formatDateKey(date1) === formatDateKey(date2)
+  return dateFnsIsSameDay(date1, date2)
 }
 
 export function getMonthName(month: number): string {
-  return new Date(2000, month).toLocaleString('en', { month: 'long' })
+  return format(new Date(2000, month, 1), 'MMMM')
 }
 
 export function getDayName(date: Date): string {
-  return date.toLocaleString('en', { weekday: 'long' })
+  return format(date, 'EEEE')
 }

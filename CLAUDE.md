@@ -230,6 +230,19 @@ Single container serves both API and static frontend.
 
 See `DEPLOYMENT.md` for full setup instructions.
 
+## Code Guidelines
+
+### Use Established Libraries for Complex Domains
+
+Avoid hand-rolling logic for domains with subtle edge cases. Use well-tested libraries for:
+
+- **Dates/Time**: Timezone handling, leap years, DST transitions (use `date-fns`, `luxon`, or Go `time` package properly)
+- **Money/Currency**: Decimal precision, rounding rules (use `decimal` libraries, never float)
+- **Internationalization**: Pluralization, locale-specific formatting
+- **Cryptography**: Never implement your own crypto
+
+Manual implementations of these are fragile and error-prone.
+
 ## Dependencies
 
 ### Backend
@@ -241,3 +254,4 @@ See `DEPLOYMENT.md` for full setup instructions.
 - `next` 16.x - React framework
 - `react` 19.x - UI library
 - `tailwindcss` 4.x - Utility-first CSS
+- `date-fns` 4.x - Date manipulation utilities
